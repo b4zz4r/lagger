@@ -2,9 +2,9 @@
 
 namespace B4zz4r\Swagger;
 
+use B4zz4r\Swagger\Commands\SwaggerGenerateCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use B4zz4r\Swagger\Commands\SwaggerGenerateCommand;
 
 class SwaggerServiceProvider extends PackageServiceProvider
 {

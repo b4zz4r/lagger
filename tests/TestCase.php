@@ -2,9 +2,9 @@
 
 namespace B4zz4r\Swagger\Tests;
 
+use B4zz4r\Swagger\SwaggerServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use B4zz4r\Swagger\SwaggerServiceProvider;
 
 class TestCase extends Orchestra
 {
