@@ -1,10 +1,10 @@
 <?php
 
-namespace B4zz4r\Swagger\Tests;
+namespace B4zz4r\Lagger\Tests;
 
+use B4zz4r\Lagger\SwaggerServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use B4zz4r\Swagger\SwaggerServiceProvider;
 
 class TestCase extends Orchestra
 {

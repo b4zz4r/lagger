@@ -1,10 +1,10 @@
 <?php
 
-namespace B4zz4r\Swagger;
+namespace B4zz4r\Lagger;
 
+use B4zz4r\Lagger\Commands\SwaggerGenerateCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use B4zz4r\Swagger\Commands\SwaggerGenerateCommand;
 
 class SwaggerServiceProvider extends PackageServiceProvider
 {
@@ -15,9 +15,10 @@ class SwaggerServiceProvider extends PackageServiceProvider
          *
          * More info: https://github.com/spatie/laravel-package-tools
          */
+
         $package
-            ->name('laravel-swagger')
-            ->hasConfigFile()
+            ->name('lagger')
+            ->hasConfigFile('lagger')
             ->hasCommand(SwaggerGenerateCommand::class);
     }
 }

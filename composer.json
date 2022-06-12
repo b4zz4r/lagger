@@ -1,12 +1,11 @@
 {
-    "name": "b4zz4r/laravel-swagger",
-    "description": "Auto-documentation laravel projects with Swagger",
+    "name": "b4zz4r/lagger",
+    "description": "Lagger",
     "keywords": [
         "b4zz4r",
-        "laravel",
-        "laravel-swagger"
+        "lagger"
     ],
-    "homepage": "https://github.com/b4zz4r/laravel-swagger",
+    "homepage": "https://github.com/b4zz4r/lagger",
     "license": "MIT",
     "authors": [
         {
@@ -17,31 +16,32 @@
     ],
     "require": {
         "php": "^8.1",
-        "spatie/laravel-package-tools": "^1.9.2",
-        "illuminate/contracts": "^9.0"
+        "spatie/laravel-package-tools": "^1.14.2",
+        "spatie/laravel-data": "^3.0",
+        "illuminate/contracts": "^10.0"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.8",
-        "nunomaduro/collision": "^6.0",
+        "laravel/pint": "^1.0",
+        "nunomaduro/collision": "^7.9",
         "nunomaduro/larastan": "^2.0.1",
-        "orchestra/testbench": "^7.0",
-        "pestphp/pest": "^1.21",
-        "pestphp/pest-plugin-laravel": "^1.1",
+        "orchestra/testbench": "^8.0",
+        "pestphp/pest": "^2.0",
+        "pestphp/pest-plugin-arch": "^2.0",
+        "pestphp/pest-plugin-laravel": "^2.0",
         "phpstan/extension-installer": "^1.1",
         "phpstan/phpstan-deprecation-rules": "^1.0",
         "phpstan/phpstan-phpunit": "^1.0",
-        "phpunit/phpunit": "^9.5",
         "spatie/laravel-ray": "^1.26"
     },
     "autoload": {
         "psr-4": {
-            "B4zz4r\\Swagger\\": "src",
-            "B4zz4r\\Swagger\\Database\\Factories\\": "database/factories"
+            "B4zz4r\\Lagger\\": "src",
+            "B4zz4r\\Lagger\\Database\\Factories\\": "database/factories"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "B4zz4r\\Swagger\\Tests\\": "tests"
+            "B4zz4r\\Lagger\\Tests\\": "tests"
         }
     },
     "scripts": {
@@ -60,10 +60,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "B4zz4r\\Swagger\\SwaggerServiceProvider"
+                "B4zz4r\\Lagger\\SwaggerServiceProvider"
             ],
             "aliases": {
-                "Swagger": "B4zz4r\\Swagger\\Facades\\Swagger"
+                "Swagger": "B4zz4r\\Lagger\\Facades\\Swagger"
             }
         }
     },
