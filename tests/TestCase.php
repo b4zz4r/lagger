@@ -1,5 +1,6 @@
 <?php
 
+<<<<<<< HEAD
 namespace B4zz4r\Swagger\Tests;
 
 use B4zz4r\Swagger\SwaggerServiceProvider;
@@ -33,4 +34,13 @@ class TestCase extends Orchestra
         $migration->up();
         */
     }
+=======
+namespace Tests;
+
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+
+abstract class TestCase extends BaseTestCase
+{
+    use CreatesApplication;
+>>>>>>> changes
 }
