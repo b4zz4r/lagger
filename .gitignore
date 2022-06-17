@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 .idea
 .php_cs
 .php_cs.cache
@@ -14,6 +15,8 @@ vendor
 node_modules
 .php-cs-fixer.cache
 =======
+=======
+>>>>>>> changes
 /node_modules
 /public/hot
 /public/storage
@@ -29,4 +32,7 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+<<<<<<< HEAD
+>>>>>>> changes
+=======
 >>>>>>> changes

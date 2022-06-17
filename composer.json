@@ -1,5 +1,6 @@
 {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "name": "b4zz4r/laravel-swagger",
     "description": "Auto-documentation laravel projects with Swagger",
     "keywords": [
@@ -39,6 +40,8 @@
             "B4zz4r\\Swagger\\": "src",
             "B4zz4r\\Swagger\\Database\\Factories\\": "database/factories"
 =======
+=======
+>>>>>>> changes
     "name": "laravel/laravel",
     "type": "project",
     "description": "The Laravel Framework.",
@@ -65,11 +68,15 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
+<<<<<<< HEAD
+>>>>>>> changes
+=======
 >>>>>>> changes
         }
     },
     "autoload-dev": {
         "psr-4": {
+<<<<<<< HEAD
 <<<<<<< HEAD
             "B4zz4r\\Swagger\\Tests\\": "tests"
         }
@@ -98,6 +105,8 @@
         }
     },
 =======
+=======
+>>>>>>> changes
             "Tests\\": "tests/"
         }
     },
@@ -133,6 +142,9 @@
         }
     ],
 
+<<<<<<< HEAD
+>>>>>>> changes
+=======
 >>>>>>> changes
     "minimum-stability": "dev",
     "prefer-stable": true

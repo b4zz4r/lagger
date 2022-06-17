@@ -1,11 +1,8 @@
 <?php
 
 return [
-<<<<<<< HEAD
-=======
   "outputPath" => "public/storage",
   'info' => [
->>>>>>> changes
     'title' => 'Sample Pet Store App',
     'description' => 'This is a sample server for a pet store.',
     'termsOfService' => 'http://example.com/terms/',
@@ -19,8 +16,6 @@ return [
       'url' => 'https://www.apache.org/licenses/LICENSE-2.0.html',
     ],
     'version' => '1.0.1',
-<<<<<<< HEAD
-=======
   ],
   'externalDocs' => [
     'description' => 'Find out more about Swagger',
@@ -45,5 +40,4 @@ return [
       'url' => 'http://swagger.io'
     ]
   ]  
->>>>>>> changes
 ];
