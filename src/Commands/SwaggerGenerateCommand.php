@@ -2,11 +2,11 @@
 
 namespace B4zz4r\Swagger\Commands;
 
+use App\Http\Requests\idkRequest;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
-use App\Http\Requests\idkRequest;
 
 class SwaggerGenerateCommand extends Command
 {
@@ -40,13 +40,11 @@ class SwaggerGenerateCommand extends Command
             $resourceClass = $reflectionMethod->getReturnType()->getName();
             $rc2 = new \ReflectionClass($resourceClass);
 
-            foreach ($reflectionMethod->getParameters() as $parameter)
-            {
+            foreach ($reflectionMethod->getParameters() as $parameter) {
                 $requestClass = $parameter->getType()->getName();
                 $rc = new \ReflectionClass($requestClass);
 
-                if($rc->hasMethod("rules") && $rc2->hasMethod("specification")) 
-                {
+                if ($rc->hasMethod("rules") && $rc2->hasMethod("specification")) {
                     $specifications["/test"]["request"] = $rc;
                     $specifications["/test"]["response"] = $rc2;
                 }
@@ -60,7 +58,7 @@ class SwaggerGenerateCommand extends Command
     protected function getRouteInformation(Route $route)
     {
         $controllerWithAction = Str::of(ltrim($route->getActionName(), '\\'));
-        
+
         return $this->filterRoute([
             'method' => implode('|', $route->methods()),
             'uri' => $route->uri(),
