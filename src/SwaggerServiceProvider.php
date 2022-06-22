@@ -1,8 +1,8 @@
 <?php
 
-namespace B4zz4r\Swagger;
+namespace B4zz4r\LaravelSwagger;
 
-use B4zz4r\Swagger\Commands\SwaggerGenerateCommand;
+use B4zz4r\LaravelSwagger\Commands\SwaggerGenerateCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 

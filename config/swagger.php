@@ -1,7 +1,7 @@
 <?php
 
 return [
-  "outputPath" => "public",
+  'outputPath' => 'public',
   'info' => [
     'title' => 'Sample Pet Store App',
     'description' => 'This is a sample server for a pet store.',
@@ -31,13 +31,5 @@ return [
       'description' => 'find more',
       'url' => 'http://swagger.io'
     ],
-    'name' => 'store',
-    'description' => 'Access to Petstore orders',
-    'name' => 'user',
-    'description' => 'Operations about user',
-    'externalDocs' => [
-      'description' => 'Find out more about our store',
-      'url' => 'http://swagger.io'
-    ]
-  ]  
+  ]
 ];

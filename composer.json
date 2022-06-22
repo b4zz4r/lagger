@@ -35,13 +35,13 @@
     },
     "autoload": {
         "psr-4": {
-            "B4zz4r\\Swagger\\": "src",
-            "B4zz4r\\Swagger\\Database\\Factories\\": "database/factories"
+            "B4zz4r\\LaravelSwagger\\": "src",
+            "B4zz4r\\LaravelSwagger\\Database\\Factories\\": "database/factories"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "B4zz4r\\Swagger\\Tests\\": "tests"
+            "B4zz4r\\LaravelSwagger\\Tests\\": "tests"
         }
     },
     "scripts": {
@@ -60,10 +60,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "B4zz4r\\Swagger\\SwaggerServiceProvider"
+                "B4zz4r\\LaravelSwagger\\SwaggerServiceProvider"
             ],
             "aliases": {
-                "Swagger": "B4zz4r\\Swagger\\Facades\\Swagger"
+                "Swagger": "B4zz4r\\LaravelSwagger\\Facades\\Swagger"
             }
         }
     },

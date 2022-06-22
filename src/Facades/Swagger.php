@@ -1,11 +1,11 @@
 <?php
 
-namespace B4zz4r\Swagger\Facades;
+namespace B4zz4r\LaravelSwagger\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @see \B4zz4r\Swagger\Swagger
+ * @see \B4zz4r\LaravelSwagger\Swagger
  */
 class Swagger extends Facade
 {

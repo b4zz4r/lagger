@@ -1,6 +1,6 @@
 <?php
 
-namespace B4zz4r\Swagger\Database\Factories;
+namespace B4zz4r\LaravelSwagger\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 
