@@ -1,7 +1,8 @@
 <?php
 
 return [
-  'outputPath' => 'public',
+  'outputPath' => public_path('swagger.json'),
+  'openapi' => '3.0.0',
   'info' => [
     'title' => 'Sample Pet Store App',
     'description' => 'This is a sample server for a pet store.',
@@ -22,14 +23,16 @@ return [
     'url' => 'http://swagger.io'
   ],
   'servers' => [
-    'url' => 'https://petstore.swagger.io/v2'
+    ['url' => 'https://petstore.swagger.io/v2']
   ],
   'tags' => [
+    [
     'name' => 'pet',
     'description' => 'Everything about your Pets',
     'externalDocs' => [
       'description' => 'find more',
       'url' => 'http://swagger.io'
     ],
+    ]
   ]
 ];
