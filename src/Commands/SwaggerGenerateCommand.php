@@ -16,7 +16,7 @@ class SwaggerGenerateCommand extends Command
 
     public $description = 'My command';
 
-    public $prefixPath = '/special';
+    public $prefixPath = '/test';
 
     public $specifications = [];
 
@@ -46,36 +46,86 @@ class SwaggerGenerateCommand extends Command
                 throw new Exception("Instance '$returnTypeOfMethod' must have 'specification' methods.");
             }
 
-            dd($returnClass->getMethod('specification')->invoke(null));
-
-            Arr::set($this->specifications, $route['uri'], [
-                'requests' => [$returnClass],
-            ]);
-
-            dd($this->specifications);
-
+            $requests = [];
             foreach ($reflectionMethod->getParameters() as $parameter) {
                 $type = $parameter->getType()->getName();
-
                 if (! class_exists($type)) {
                     continue;
                 }
 
                 $parameterClass = new ReflectionClass($type);
-
                 if (! $parameterClass->hasMethod('rules')) {
                     continue;
                 }
 
-                if ($rc->hasMethod("rules") && $rc2->hasMethod("specification")) {
-                    $specifications["/test"]["request"] = $rc;
-                    $specifications["/test"]["response"] = $rc2;
-                }
+                $requests[] = $type;
             }
-        }
-        $this->comment('All done');
 
+            $this->specifications[] = [
+                'route' => $route['uri'],
+                'method' => $route['method'],
+                'response' => $returnTypeOfMethod,
+                'requests' => $requests,
+            ];
+        }
+
+        $this->generateSwaggerSpecification($this->specifications);
+        $this->comment('All done');
         return self::SUCCESS;
+    }
+
+    protected function generateSwaggerSpecification(array $specifications = []): void
+    {
+        // @TODO save JSON file
+        $info = config('laravel-swagger');
+        $outputPath = Arr::pull($info, 'outputPath');
+        
+        $paths = [];
+        /**
+         * @var array $specification
+         */
+        foreach ($specifications as $specification) {
+            $paths =  Arr::add($paths, $specification['route'], [$this->resolveMethod($specification['method']) => [
+                'description' => 'BINGUS DRIPPIN',
+                'summary' => 'BINGUS WAS HERE',
+                'operationId' => 'getInformation',
+                'tags' => [
+                    'pet',
+                ],
+                'parameters' => 
+                [
+                    [
+                        'name' => 'BINGUS',
+                        'in' => 'query',
+                        'description' => 'STATUS OF BINGUS',
+                        'required' => false,
+                        'style' => 'form',
+                        'explode' => true,
+                        'schema' => [
+                           'type' => 'boolean'
+                        ]
+                    ]
+                ],
+                'responses' => $specification['response'],
+
+
+            ]]);
+        }
+
+        $info['paths'] = $paths;
+        // dd($info);
+
+        $json = json_encode($info);
+        file_put_contents($outputPath, $json);
+        dd('done');
+    }
+
+    private function resolveMethod(string $method): string
+    {
+        return match ($method) {
+            'GET|HEAD' => 'get',
+            default => 'unknow',
+        };
     }
 
     protected function getRouteInformation(Route $route)
