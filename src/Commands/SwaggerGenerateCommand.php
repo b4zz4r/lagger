@@ -8,6 +8,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Psy\CodeCleaner\FunctionReturnInWriteContextPass;
 use ReflectionClass;
 
 class SwaggerGenerateCommand extends Command
@@ -20,6 +21,8 @@ class SwaggerGenerateCommand extends Command
 
     public $specifications = [];
 
+    public $bigArray = [];
+
     public function __construct(private Router $router)
     {
         parent::__construct();
@@ -29,7 +32,9 @@ class SwaggerGenerateCommand extends Command
     {
         $routes = collect($this->router->getRoutes())->map(function ($route) {
             return $this->getRouteInformation($route);
-        })->filter()->all();
+        })->flatten(1)->filter()->all();
+
+        // dd($routes);
 
         foreach ($routes as $route) {
             $reflectionClass = new ReflectionClass($route['controller']);
@@ -63,7 +68,7 @@ class SwaggerGenerateCommand extends Command
 
             $this->specifications[] = [
                 'route' => $route['uri'],
-                'method' => $route['method'],
+                'methods' => $route['method'],
                 'response' => $returnTypeOfMethod,
                 'requests' => $requests,
             ];
@@ -85,45 +90,59 @@ class SwaggerGenerateCommand extends Command
          * @var array $specification
          */
         foreach ($specifications as $specification) {
-            $paths =  Arr::add($paths, $specification['route'], [$this->resolveMethod($specification['method']) => [
-                'description' => 'BINGUS DRIPPIN',
-                'summary' => 'BINGUS WAS HERE',
-                'operationId' => 'getInformation',
-                'tags' => [
-                    'pet',
-                ],
-                'parameters' => 
-                [
-                    [
-                        'name' => 'BINGUS',
-                        'in' => 'query',
-                        'description' => 'STATUS OF BINGUS',
-                        'required' => false,
-                        'style' => 'form',
-                        'explode' => true,
-                        'schema' => [
-                           'type' => 'boolean'
-                        ]
-                    ]
-                ],
-                'responses' => $specification['response'],
+            $methods = $specification['methods'];
+            $lol = $this->getContents($paths, $specification, $methods);
+            $info['paths'] = $lol;
+            var_dump($lol);
 
-
-            ]]);
         }
+        unset($specifications[0]);
+        $this->getContents($paths, $specification, $methods);
+        // var_dump($info);
 
-        $info['paths'] = $paths;
-        // dd($info);
-
-        $json = json_encode($info);
-        file_put_contents($outputPath, $json);
+        // $json = json_encode($info);
+        // file_put_contents($outputPath, $json);
         dd('done');
     }
 
-    private function resolveMethod(string $method): string
+    private function getContents($paths, $specification, $methods)
+    {
+        $paths =  Arr::add($paths, $specification['route'], [$this->resolveMethod($methods) => [
+            'description' => 'BINGUS DRIPPIN',
+            'summary' => 'BINGUS WAS HERE',
+            'operationId' => 'getInformation',
+            'tags' => [
+                'pet',
+            ],
+            $this->getKeyByMethod($this->resolveMethod($methods)) => [
+                // 
+            ],
+            'responses' => $specification['response'],
+            'requests' => $specification['requests'],
+        ]]);
+        return $paths;
+    }
+
+    private function getKeyByMethod($method)
     {
         return match ($method) {
-            'GET|HEAD' => 'get',
+            'get' => 'parameters',
+            'delete' => 'parameters',
+            'post' => 'requestBody',
+            'patch' => 'requestBody',
+            'put'  => 'requestBody',
+            default => 'requestBody'
+        };
+
+    }
+
+    private function resolveMethod($methods)
+    {
+        return match ($methods) {
+            'GET' => 'get',
+            'POST' => 'post',
+            'DELETE' => 'delete',
+            'PUT' => 'put',
             default => 'unknow',
         };
     }
@@ -132,13 +151,15 @@ class SwaggerGenerateCommand extends Command
     {
         $controllerWithAction = Str::of(ltrim($route->getActionName(), '\\'));
 
-        return $this->filterRoute([
-            'method' => implode('|', $route->methods()),
+        $methods = Arr::where($route->methods(), fn ($value) => $value !== 'HEAD');
+
+        return Arr::map($methods, fn ($method) => $this->filterRoute([
+            'method' => $method,
             'uri' => "/{$route->uri()}",
             'name' => $route->getName(),
             'controller' => $controllerWithAction->before('@')->value(),
             'action' => $controllerWithAction->after('@')->value(),
-        ]);
+        ]));
     }
 
     private function filterRoute(array $route): ?array
