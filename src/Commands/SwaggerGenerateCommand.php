@@ -21,7 +21,7 @@ class SwaggerGenerateCommand extends Command
 
     public $specifications = [];
 
-    public $bigArray = [];
+    public $arrayOfInfos = [];
 
     public function __construct(private Router $router)
     {
@@ -68,7 +68,7 @@ class SwaggerGenerateCommand extends Command
 
             $this->specifications[] = [
                 'route' => $route['uri'],
-                'methods' => $route['method'],
+                'method' => $route['method'],
                 'response' => $returnTypeOfMethod,
                 'requests' => $requests,
             ];
@@ -90,40 +90,41 @@ class SwaggerGenerateCommand extends Command
          * @var array $specification
          */
         foreach ($specifications as $specification) {
-            $methods = $specification['methods'];
-            $lol = $this->getContents($paths, $specification, $methods);
-            $info['paths'] = $lol;
-            var_dump($lol);
-
+            $paths[] = $this->getContents($specification);
+            $info['paths'] = $paths;
+            $this->arrayOfInfos[] = $info;
+            unset($paths);
         }
-        unset($specifications[0]);
-        $this->getContents($paths, $specification, $methods);
-        // var_dump($info);
+        dd($this->arrayOfInfos);
 
         // $json = json_encode($info);
         // file_put_contents($outputPath, $json);
         dd('done');
     }
 
-    private function getContents($paths, $specification, $methods)
+    private function getContents($specification): array
     {
-        $paths =  Arr::add($paths, $specification['route'], [$this->resolveMethod($methods) => [
-            'description' => 'BINGUS DRIPPIN',
-            'summary' => 'BINGUS WAS HERE',
-            'operationId' => 'getInformation',
-            'tags' => [
-                'pet',
+        $method = $this->resolveMethod($specification['method']);
+        return [
+            $specification['route'] => [
+                $method => [
+                    'description' => 'BINGUS DRIPPIN',
+                    'summary' => 'BINGUS WAS HERE',
+                    'operationId' => 'getInformation',
+                    'tags' => [
+                        'pet',
+                    ],
+                    $this->getKeyByMethod($method) => [
+                        // 
+                    ],
+                    'responses' => $specification['response'],
+                    'requests' => $specification['requests'],
+                ]
             ],
-            $this->getKeyByMethod($this->resolveMethod($methods)) => [
-                // 
-            ],
-            'responses' => $specification['response'],
-            'requests' => $specification['requests'],
-        ]]);
-        return $paths;
+        ];
     }
 
-    private function getKeyByMethod($method)
+    private function getKeyByMethod($method): string
     {
         return match ($method) {
             'get' => 'parameters',
@@ -133,7 +134,6 @@ class SwaggerGenerateCommand extends Command
             'put'  => 'requestBody',
             default => 'requestBody'
         };
-
     }
 
     private function resolveMethod($methods)
