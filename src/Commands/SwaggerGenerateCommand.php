@@ -2,12 +2,15 @@
 
 namespace B4zz4r\LaravelSwagger\Commands;
 
+use App\Http\Requests\SwaggerRequest;
+use B4zz4r\LaravelSwagger\Swagger;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
 use Psy\CodeCleaner\FunctionReturnInWriteContextPass;
 use ReflectionClass;
 
@@ -20,8 +23,6 @@ class SwaggerGenerateCommand extends Command
     public $prefixPath = '/test';
 
     public $specifications = [];
-
-    public $arrayOfInfos = [];
 
     public function __construct(private Router $router)
     {
@@ -86,52 +87,77 @@ class SwaggerGenerateCommand extends Command
         $outputPath = Arr::pull($info, 'outputPath');
         
         $paths = [];
+
         /**
          * @var array $specification
          */
         foreach ($specifications as $specification) {
-            $paths[] = $this->getContents($specification);
-            $info['paths'] = $paths;
-            $this->arrayOfInfos[] = $info;
-            unset($paths);
-        }
-        dd($this->arrayOfInfos);
+            $route = $specification['route'];
+            $method = $this->resolveMethod($specification['method']);
 
-        // $json = json_encode($info);
-        // file_put_contents($outputPath, $json);
+            $paths[$route] = $paths[$route] ?? [];
+            $paths[$route][$method] = $this->getContents($specification);
+        }
+
+        $info['paths'] = $paths;
+
+        // dd($info);
+        $json = json_encode($info);
+        file_put_contents($outputPath, $json);
         dd('done');
     }
 
     private function getContents($specification): array
     {
-        $method = $this->resolveMethod($specification['method']);
+        $requestClass = $specification['requests'][0];
+        $request = new $requestClass();
+        // dd($request->rules());
+        $schema = []; // todo
+        $this->resolveRequest($request->rules(), $schema);
+        dd($schema);
+
         return [
-            $specification['route'] => [
-                $method => [
-                    'description' => 'BINGUS DRIPPIN',
-                    'summary' => 'BINGUS WAS HERE',
-                    'operationId' => 'getInformation',
-                    'tags' => [
-                        'pet',
-                    ],
-                    $this->getKeyByMethod($method) => [
-                        // 
-                    ],
-                    'responses' => $specification['response'],
-                    'requests' => $specification['requests'],
-                ]
+            'description' => 'BINGUS DRIPPIN',
+            'summary' => 'BINGUS WAS HERE',
+            'operationId' => 'getInformation',
+            'tags' => [
+                'pet',
             ],
+            $this->getRequestSchemaKeyByMethod($specification['method']) => $schema,
+            // 'responses' => $specification['response'],
+            // 'requests' => $specification['requests'],
         ];
     }
 
-    private function getKeyByMethod($method): string
+    private function resolveRequest($rules)
+    {   
+        $propArray = [];
+        foreach($rules as $key => $value)
+        {
+            if (strpos($value, "array") !== false) 
+            {
+                $rules[$key] = [];
+                // var_dump($rules[$key]);
+            }
+
+            if(Str::contains($key, ".") && !Str::contains($key, "*") && strpos($value, "array") == false)
+            {
+                $propArray[$key] = $value;
+            }
+
+        }
+        // $this->resolveRequest($propArray);
+        dd($rules);
+    }
+
+    private function getRequestSchemaKeyByMethod($method): string
     {
         return match ($method) {
-            'get' => 'parameters',
-            'delete' => 'parameters',
-            'post' => 'requestBody',
-            'patch' => 'requestBody',
-            'put'  => 'requestBody',
+            'GET' => 'parameters',
+            'DELETE' => 'parameters',
+            'POST' => 'requestBody',
+            'PATCH' => 'requestBody',
+            'PUT'  => 'requestBody',
             default => 'requestBody'
         };
     }
