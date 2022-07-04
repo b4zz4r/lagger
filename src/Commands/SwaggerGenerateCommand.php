@@ -35,8 +35,6 @@ class SwaggerGenerateCommand extends Command
             return $this->getRouteInformation($route);
         })->flatten(1)->filter()->all();
 
-        // dd($routes);
-
         foreach ($routes as $route) {
             $reflectionClass = new ReflectionClass($route['controller']);
             $reflectionMethod = $reflectionClass->getMethod($route['action']);
@@ -53,13 +51,16 @@ class SwaggerGenerateCommand extends Command
             }
 
             $requests = [];
+
             foreach ($reflectionMethod->getParameters() as $parameter) {
                 $type = $parameter->getType()->getName();
+
                 if (! class_exists($type)) {
                     continue;
                 }
 
                 $parameterClass = new ReflectionClass($type);
+
                 if (! $parameterClass->hasMethod('rules')) {
                     continue;
                 }
@@ -85,7 +86,7 @@ class SwaggerGenerateCommand extends Command
         // @TODO save JSON file
         $info = config('laravel-swagger');
         $outputPath = Arr::pull($info, 'outputPath');
-        
+
         $paths = [];
 
         /**
@@ -111,7 +112,7 @@ class SwaggerGenerateCommand extends Command
     {
         $requestClass = $specification['requests'][0];
         $request = new $requestClass();
-        // dd($request->rules());
+
         $schema = []; // todo
         $this->resolveRequest($request->rules(), $schema);
         dd($schema);
@@ -129,25 +130,79 @@ class SwaggerGenerateCommand extends Command
         ];
     }
 
-    private function resolveRequest($rules)
-    {   
-        $propArray = [];
-        foreach($rules as $key => $value)
-        {
-            if (strpos($value, "array") !== false) 
-            {
-                $rules[$key] = [];
-                // var_dump($rules[$key]);
+    private function resolveRequest(array $rules)
+    {
+        $schema = [];
+
+        // $rules = Arr::undot($rules);
+
+        foreach ($rules as $key => $value) {
+            dump($value, $key);
+            if (! Str::contains($value, 'array')) {
+                $schema[$key] = $this->generateSchemaByRules($key, $value);
+
+                continue;
             }
 
-            if(Str::contains($key, ".") && !Str::contains($key, "*") && strpos($value, "array") == false)
-            {
-                $propArray[$key] = $value;
-            }
+            // $key      =  $value
+            // education = 'required|array'
+
 
         }
-        // $this->resolveRequest($propArray);
-        dd($rules);
+
+        dd($schema);
+    }
+
+    private function generateSchemaByRules(string $key, array|string $rules, array $children = []): array
+    {
+        $schema = [
+            'type' => null,
+        ];
+
+        $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
+
+        foreach ($rules as $rule) {
+            if (Str::contains($rule, ['date', 'date_format', 'date_equals'])) {
+                $schema['type'] = 'string';
+                $schema['format'] = 'date';
+
+                continue;
+            }
+
+            if ($rule === 'nullable') {
+                $schema['nullable'] = true;
+
+                continue;
+            }
+
+            if ($rule === 'numeric') {
+                $schema['type'] = 'integer';
+
+                continue;
+            }
+
+            if ($rule === 'string') {
+                $schema['type'] = 'string';
+
+                continue;
+            }
+
+            if (count($children) && isset($children['*'])) {
+                $schema['type'] = 'array';
+
+                continue;
+            }
+
+            $schema['type'] = 'object';
+        }
+
+//        if (!empty ($children)) {
+//            $children = []; // has $values any children
+//
+//            $schema['properties'] = $this->generateSchemaByRules($key, $children, $children);
+//        }
+
+        return $schema;
     }
 
     private function getRequestSchemaKeyByMethod($method): string
