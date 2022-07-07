@@ -133,21 +133,34 @@ class SwaggerGenerateCommand extends Command
     private function resolveRequest(array $rules)
     {
         $schema = [];
-        foreach ($rules as $key => $value) {
-            if (! Str::contains($value, 'array')) {
-            // $key = Str::after($key, ".");
-            $schema[$key] = $this->generateSchemaByRules($key, $value);
-            continue;
-                
+        $skip = [];
+
+        foreach ($rules as $parentKey => $value) {
+            if (in_array($parentKey, $skip)) {
+                continue;
             }
 
-            if(Str::contains($key, ".")) {
-                Arr::forget($schema, $key);
+            if (! Str::contains($value, 'array')) {
+                $schema[$parentKey] = $this->generateSchemaByRules($value);
+
+                Arr::forget($rules, $parentKey);
+                continue;
             }
-            
+
             if (Str::contains($value, 'array')) {
-                Arr::forget($rules, $key);
-                $schema[$key] = $this->resolveRequest($rules);
+                $children = collect($rules)
+                    ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
+
+                array_push($skip, ... array_keys($children->toArray()));
+
+                $children = $children
+                    ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
+                    ->toArray();
+
+                $schema[$parentKey] = $this->generateSchemaByRules($value, $children);
+
+                unset($children);
+
                 continue;
             }
 
@@ -155,18 +168,25 @@ class SwaggerGenerateCommand extends Command
             // $key      =  $value
             // education = 'required|array'
         }
-        // dd($rules);
-        // dd([]);
+
+        dd($schema);
+
         return $schema;
     }
 
-    private function generateSchemaByRules(string $key, array|string $rules, array $children = []): array
+    private function generateSchemaByRules(array|string $rules, array $children = []): array
     {
         $schema = [
             'type' => null,
         ];
-        // dump($key);
+
         $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
+
+        if (! empty($children)) {
+            foreach ($children as $key => $rule) {
+                $schema['properties'][$key] = $this->generateSchemaByRules($rule);
+            }
+        }
 
         foreach ($rules as $rule) {
             if (Str::contains($rule, ['date', 'date_format', 'date_equals'])) {
@@ -200,14 +220,10 @@ class SwaggerGenerateCommand extends Command
                 continue;
             }
 
-            $schema['type'] = 'object';
+            if ($schema['type'] === null) {
+                $schema['type'] = 'object';
+            }
         }
-
-//        if (!empty ($children)) {
-//            $children = []; // has $values any children
-//
-//            $schema['properties'] = $this->generateSchemaByRules($key, $children, $children);
-//        }
 
         return $schema;
     }
