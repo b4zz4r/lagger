@@ -6,6 +6,7 @@ use App\Http\Requests\SwaggerRequest;
 use B4zz4r\LaravelSwagger\Swagger;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Database\Console\DumpCommand;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
@@ -114,8 +115,7 @@ class SwaggerGenerateCommand extends Command
         $request = new $requestClass();
 
         $schema = []; // todo
-        $this->resolveRequest($request->rules(), $schema);
-        dd($schema);
+        dd($this->resolveRequest($request->rules()));
 
         return [
             'description' => 'BINGUS DRIPPIN',
@@ -133,24 +133,31 @@ class SwaggerGenerateCommand extends Command
     private function resolveRequest(array $rules)
     {
         $schema = [];
-
-        // $rules = Arr::undot($rules);
-
         foreach ($rules as $key => $value) {
-            dump($value, $key);
             if (! Str::contains($value, 'array')) {
-                $schema[$key] = $this->generateSchemaByRules($key, $value);
+            // $key = Str::after($key, ".");
+            $schema[$key] = $this->generateSchemaByRules($key, $value);
+            continue;
+                
+            }
 
+            if(Str::contains($key, ".")) {
+                Arr::forget($schema, $key);
+            }
+            
+            if (Str::contains($value, 'array')) {
+                Arr::forget($rules, $key);
+                $schema[$key] = $this->resolveRequest($rules);
                 continue;
             }
 
+
             // $key      =  $value
             // education = 'required|array'
-
-
         }
-
-        dd($schema);
+        // dd($rules);
+        // dd([]);
+        return $schema;
     }
 
     private function generateSchemaByRules(string $key, array|string $rules, array $children = []): array
@@ -158,7 +165,7 @@ class SwaggerGenerateCommand extends Command
         $schema = [
             'type' => null,
         ];
-
+        // dump($key);
         $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
 
         foreach ($rules as $rule) {
