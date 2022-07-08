@@ -114,7 +114,7 @@ class SwaggerGenerateCommand extends Command
         $requestClass = $specification['requests'][0];
         $request = new $requestClass();
 
-        $schema = []; // todo
+        $schema = $this->resolveRequest($request->rules()); // todo
         dd($this->resolveRequest($request->rules()));
 
         return [
@@ -148,29 +148,30 @@ class SwaggerGenerateCommand extends Command
             }
 
             if (Str::contains($value, 'array')) {
+                if (Str::contains($parentKey, ".")) {
+                    $tempChildern= Str::after($parentKey, ".");
+                    $trueParentKey = Str::remove(".$tempChildern", $parentKey);
+                }
+                
                 $children = collect($rules)
                     ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
 
                 array_push($skip, ... array_keys($children->toArray()));
 
+
                 $children = $children
                     ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
                     ->toArray();
 
+                $parentKey = $trueParentKey ?? $parentKey;
                 $schema[$parentKey] = $this->generateSchemaByRules($value, $children);
 
                 unset($children);
-
                 continue;
             }
-
-
-            // $key      =  $value
-            // education = 'required|array'
         }
 
-        dd($schema);
-
+        // dd($schema);
         return $schema;
     }
 
@@ -179,6 +180,8 @@ class SwaggerGenerateCommand extends Command
         $schema = [
             'type' => null,
         ];
+        // dump($rules);
+        // dd($children);
 
         $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
 
@@ -189,6 +192,7 @@ class SwaggerGenerateCommand extends Command
         }
 
         foreach ($rules as $rule) {
+            // dump($rule);
             if (Str::contains($rule, ['date', 'date_format', 'date_equals'])) {
                 $schema['type'] = 'string';
                 $schema['format'] = 'date';
@@ -210,6 +214,24 @@ class SwaggerGenerateCommand extends Command
 
             if ($rule === 'string') {
                 $schema['type'] = 'string';
+
+                continue;
+            }
+
+            if(Str::contains($rule, "digits_between")) {
+                $schema['maximum'] = Str::after($rule, ',');
+                
+                continue;
+            }
+
+            if(Str::contains($rule, "max")) {
+                $schema['maxLength'] = Str::after($rule, ':');
+
+                continue;
+            }
+
+            if(Str::contains($rule, "min")) {
+                $schema['minLength'] = Str::after($rule, ':');
 
                 continue;
             }
