@@ -103,7 +103,7 @@ class SwaggerGenerateCommand extends Command
 
         $info['paths'] = $paths;
 
-        // dd($info);
+        dd($paths);
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
         dd('done');
@@ -114,8 +114,8 @@ class SwaggerGenerateCommand extends Command
         $requestClass = $specification['requests'][0];
         $request = new $requestClass();
 
-        $schema = $this->resolveRequest($request->rules()); // todo
-        dd($this->resolveRequest($request->rules()));
+        $schema = $this->resolveRequest($request->rules());
+        // dd($schema);
 
         return [
             'description' => 'BINGUS DRIPPIN',
@@ -142,29 +142,35 @@ class SwaggerGenerateCommand extends Command
 
             if (! Str::contains($value, 'array')) {
                 $schema[$parentKey] = $this->generateSchemaByRules($value);
-
                 Arr::forget($rules, $parentKey);
+
                 continue;
             }
 
             if (Str::contains($value, 'array')) {
-                if (Str::contains($parentKey, ".")) {
-                    $tempChildern= Str::after($parentKey, ".");
-                    $trueParentKey = Str::remove(".$tempChildern", $parentKey);
-                }
-                
                 $children = collect($rules)
                     ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
 
                 array_push($skip, ... array_keys($children->toArray()));
 
-
                 $children = $children
-                    ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
-                    ->toArray();
+                ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
+                ->toArray();
 
-                $parentKey = $trueParentKey ?? $parentKey;
-                $schema[$parentKey] = $this->generateSchemaByRules($value, $children);
+                // array of children as keys
+                $childKey = collect($children)
+                ->filter(fn ($item, $childKey) => !Str::contains($childKey, '*'))
+                ->keys()
+                ->all();
+
+                // filter childern with '*'
+                $childWithStar = collect($children)
+                ->filter(fn ($item, $key) => Str::contains($key, '*'))
+                ->mapWithKeys(fn ($item, $key) => [Str::after($key, ".") => $item])
+                ->toArray();
+
+                $children = $childWithStar ? $childWithStar : $children;
+                $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $childKey);
 
                 unset($children);
                 continue;
@@ -175,24 +181,40 @@ class SwaggerGenerateCommand extends Command
         return $schema;
     }
 
-    private function generateSchemaByRules(array|string $rules, array $children = []): array
+    private function generateSchemaByRules(array|string $rules, array $children = [], $propertyKey = null): array
     {
         $schema = [
             'type' => null,
         ];
-        // dump($rules);
-        // dd($children);
+
+        if (!Str::contains($rules, 'array')) {
+            $nullable = Str::before($rules, '|');
+            $rules = Str::remove($nullable, $rules);
+        }
 
         $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
 
-        if (! empty($children)) {
+        if (! empty($children) && isset($children['*'])) {
             foreach ($children as $key => $rule) {
-                $schema['properties'][$key] = $this->generateSchemaByRules($rule);
+                $schema['properties'] = $this->generateSchemaByRules($rule);
+
             }
         }
 
+        if (! empty($children) && !isset($children['*'])) {
+            foreach ($children as $key => $rule) {
+                $schema['properties'][$key] = $this->generateSchemaByRules($rule);
+
+            }
+        }
+
+
+
         foreach ($rules as $rule) {
-            // dump($rule);
+            if ($schema['type'] === null) {
+                $schema['type'] = 'object';
+            }
+
             if (Str::contains($rule, ['date', 'date_format', 'date_equals'])) {
                 $schema['type'] = 'string';
                 $schema['format'] = 'date';
@@ -235,16 +257,17 @@ class SwaggerGenerateCommand extends Command
 
                 continue;
             }
-
             if (count($children) && isset($children['*'])) {
-                $schema['type'] = 'array';
+                for($index = 0; $index < count($propertyKey); $index++) {
+                    unset($schema['properties']['type']);
+                    $schema['properties'][$propertyKey[$index]]['type'] = 'array';
+                    $schema['properties'][$propertyKey[$index]]['items']['type'] = 'binary';
+                }
 
                 continue;
             }
 
-            if ($schema['type'] === null) {
-                $schema['type'] = 'object';
-            }
+
         }
 
         return $schema;
