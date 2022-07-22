@@ -103,7 +103,7 @@ class SwaggerGenerateCommand extends Command
 
         $info['paths'] = $paths;
 
-        dd($paths);
+        // dd($paths);
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
         dd('done');
@@ -124,8 +124,29 @@ class SwaggerGenerateCommand extends Command
             'tags' => [
                 'pet',
             ],
-            $this->getRequestSchemaKeyByMethod($specification['method']) => $schema,
-            // 'responses' => $specification['response'],
+            // 'parameters' => [
+            //     [
+            //         'in' => $this->getTypeByMethod($specification['method']),
+            //         'name' => 'body',
+            //         'required' => true,
+            //         'schema' => [
+            //             'type' => 'object'
+            //         ],
+            //     ]
+            // ],
+            $this->getRequestSchemaKeyByMethod($specification['method']) => [
+                'content' => [
+                    'application/x-www-form-urlencoded' => 
+                        [
+                            'schema' => 
+                            [
+                                'properties' => $schema
+                            ]
+                        ]
+                    ]
+            ],
+
+            'responses' => $specification['response'],
             // 'requests' => $specification['requests'],
         ];
     }
@@ -157,20 +178,22 @@ class SwaggerGenerateCommand extends Command
                 ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
                 ->toArray();
 
-                // array of children as keys
-                $childKey = collect($children)
-                ->filter(fn ($item, $childKey) => !Str::contains($childKey, '*'))
-                ->keys()
+                // get array of children with removed '*'
+                $cleanChildKey = collect($children)
+                ->filter(fn ($item, $key) => Str::contains($key, '*'))
+                ->transform(fn ($item, $key) => Str::remove('.*', $key))
+                ->values()
                 ->all();
 
+
                 // filter childern with '*'
-                $childWithStar = collect($children)
+                $childrenWithStar = collect($children)
                 ->filter(fn ($item, $key) => Str::contains($key, '*'))
                 ->mapWithKeys(fn ($item, $key) => [Str::after($key, ".") => $item])
                 ->toArray();
 
-                $children = $childWithStar ? $childWithStar : $children;
-                $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $childKey);
+                $children = $childrenWithStar ? $childrenWithStar : $children;
+                $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $cleanChildKey);
 
                 unset($children);
                 continue;
@@ -261,7 +284,7 @@ class SwaggerGenerateCommand extends Command
                 for($index = 0; $index < count($propertyKey); $index++) {
                     unset($schema['properties']['type']);
                     $schema['properties'][$propertyKey[$index]]['type'] = 'array';
-                    $schema['properties'][$propertyKey[$index]]['items']['type'] = 'binary';
+                    $schema['properties'][$propertyKey[$index]]['items']['format'] = 'binary';
                 }
 
                 continue;
@@ -281,6 +304,15 @@ class SwaggerGenerateCommand extends Command
             'POST' => 'requestBody',
             'PATCH' => 'requestBody',
             'PUT'  => 'requestBody',
+            default => 'requestBody'
+        };
+    }
+
+    private function getTypeByMethod($method): string {
+
+        return match ($method) {
+            'GET' => 'query',
+            'POST' => 'header',
             default => 'requestBody'
         };
     }
