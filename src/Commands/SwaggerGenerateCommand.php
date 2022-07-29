@@ -170,7 +170,9 @@ class SwaggerGenerateCommand extends Command
                     return match ($key) {
                         'name' => $schemaKey,
                         'schema' => $schemaValue,
-                        default => throw new Exception('Missing key'),
+                        'in' => $item,
+                        'required' => $item,
+                        default => throw new Exception("Missing key - $key"),
                     };
                 })
                 ->toArray();
@@ -287,19 +289,21 @@ class SwaggerGenerateCommand extends Command
             }
 
             if (Str::contains($rule, "digits_between")) {
-                $schema['maximum'] = Str::after($rule, ',');
+                $digits = \explode(',', Str::after($rule, ':'));
+                $schema['minimum'] = (int) $digits[0];
+                $schema['maximum'] = (int) $digits[1];
 
                 continue;
             }
 
             if (Str::contains($rule, "max")) {
-                $schema['maxLength'] = Str::after($rule, ':');
+                $schema['maxLength'] = (int) Str::after($rule, ':');
 
                 continue;
             }
 
             if (Str::contains($rule, "min")) {
-                $schema['minLength'] = Str::after($rule, ':');
+                $schema['minLength'] = (int) Str::after($rule, ':');
 
                 continue;
             }
