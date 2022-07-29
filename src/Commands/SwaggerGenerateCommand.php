@@ -117,24 +117,41 @@ class SwaggerGenerateCommand extends Command
         $schema = $this->resolveRequest($request->rules());
         // dd($schema);
 
-        return [
+        $contents = [
             'description' => 'BINGUS DRIPPIN',
             'summary' => 'BINGUS WAS HERE',
             'operationId' => 'getInformation',
             'tags' => [
                 'pet',
             ],
-            // 'parameters' => [
-            //     [
-            //         'in' => $this->getTypeByMethod($specification['method']),
-            //         'name' => 'body',
-            //         'required' => true,
-            //         'schema' => [
-            //             'type' => 'object'
-            //         ],
-            //     ]
-            // ],
-            $this->getRequestSchemaKeyByMethod($specification['method']) => [
+            'parameters' => $this->getParametersFromSchema($schema, $specification['method']),
+            // $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getRequestBody($schema),
+
+            'responses' => [
+                200 => [
+                    'description' => 'successful operation',
+                    'content' => [
+                        'application/xml' => [
+                            'schema' => [
+                                'type' => 'object',
+                            ]
+                        ]
+                    ]
+                ]
+            ],
+            // 'requests' => $specification['requests'],
+        ];
+
+        if($specification['method'] == 'POST') {
+            $contents['requestBody'] = $this->getRequestBody($schema);
+        }
+
+        return $contents;
+    }
+
+    private function getRequestBody($schema): array
+    {
+        return [
                 'content' => [
                     'application/x-www-form-urlencoded' => 
                         [
@@ -144,11 +161,37 @@ class SwaggerGenerateCommand extends Command
                             ]
                         ]
                     ]
-            ],
-
-            'responses' => $specification['response'],
-            // 'requests' => $specification['requests'],
         ];
+    }
+
+    private function getParametersFromSchema($schema, $method = []): array
+    {
+        $arrayOfParameters = [];
+        $parameters = [
+            'in' => $this->getTypeByMethod($method),
+            'name' => null,
+            'required' => true,
+            'schema' => null
+        ]; 
+        // dump($schema);
+
+        foreach($schema as $schemaKey => $schemaValue) {
+            $parameters = collect($parameters)
+            ->transform(function ($item, $key) use ($schemaKey, $schemaValue){
+                if ($key == 'name') {
+                    $item = $schemaKey;
+                }
+
+                if ($key == 'schema') {
+                    $item = $schemaValue;
+                }
+                return $item;
+            })
+            ->toArray();
+            array_push($arrayOfParameters, $parameters);
+        }
+
+        return $arrayOfParameters;
     }
 
     private function resolveRequest(array $rules)
@@ -296,15 +339,16 @@ class SwaggerGenerateCommand extends Command
         return $schema;
     }
 
-    private function getRequestSchemaKeyByMethod($method): string
+    private function getRequestSchemaKeyByMethod($method)
     {
+       
         return match ($method) {
             'GET' => 'parameters',
             'DELETE' => 'parameters',
             'POST' => 'requestBody',
             'PATCH' => 'requestBody',
             'PUT'  => 'requestBody',
-            default => 'requestBody'
+            default => null
         };
     }
 
