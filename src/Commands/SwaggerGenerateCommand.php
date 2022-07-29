@@ -2,17 +2,12 @@
 
 namespace B4zz4r\LaravelSwagger\Commands;
 
-use App\Http\Requests\SwaggerRequest;
-use B4zz4r\LaravelSwagger\Swagger;
 use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Database\Console\DumpCommand;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Support\Collection;
-use Psy\CodeCleaner\FunctionReturnInWriteContextPass;
 use ReflectionClass;
 
 class SwaggerGenerateCommand extends Command
@@ -21,9 +16,9 @@ class SwaggerGenerateCommand extends Command
 
     public $description = 'My command';
 
-    public $prefixPath = '/test';
+    public ?string $prefixPath = '/test';
 
-    public $specifications = [];
+    public array $specifications = [];
 
     public function __construct(private Router $router)
     {
@@ -79,12 +74,12 @@ class SwaggerGenerateCommand extends Command
 
         $this->generateSwaggerSpecification($this->specifications);
         $this->comment('All done');
+
         return self::SUCCESS;
     }
 
     protected function generateSwaggerSpecification(array $specifications = []): void
     {
-        // @TODO save JSON file
         $info = config('laravel-swagger');
         $outputPath = Arr::pull($info, 'outputPath');
 
@@ -103,10 +98,8 @@ class SwaggerGenerateCommand extends Command
 
         $info['paths'] = $paths;
 
-        // dd($paths);
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
-        dd('done');
     }
 
     private function getContents($specification): array
@@ -115,7 +108,6 @@ class SwaggerGenerateCommand extends Command
         $request = new $requestClass();
 
         $schema = $this->resolveRequest($request->rules());
-        // dd($schema);
 
         $contents = [
             'description' => 'BINGUS DRIPPIN',
@@ -134,15 +126,15 @@ class SwaggerGenerateCommand extends Command
                         'application/xml' => [
                             'schema' => [
                                 'type' => 'object',
-                            ]
-                        ]
-                    ]
-                ]
+                            ],
+                        ],
+                    ],
+                ],
             ],
             // 'requests' => $specification['requests'],
         ];
 
-        if($specification['method'] == 'POST') {
+        if ($specification['method'] == 'POST') {
             $contents['requestBody'] = $this->getRequestBody($schema);
         }
 
@@ -152,15 +144,13 @@ class SwaggerGenerateCommand extends Command
     private function getRequestBody($schema): array
     {
         return [
-                'content' => [
-                    'application/x-www-form-urlencoded' => 
-                        [
-                            'schema' => 
-                            [
-                                'properties' => $schema
-                            ]
-                        ]
-                    ]
+            'content' => [
+                'application/x-www-form-urlencoded' => [
+                    'schema' => [
+                        'properties' => $schema,
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -171,30 +161,27 @@ class SwaggerGenerateCommand extends Command
             'in' => $this->getTypeByMethod($method),
             'name' => null,
             'required' => true,
-            'schema' => null
-        ]; 
-        // dump($schema);
+            'schema' => null,
+        ];
 
-        foreach($schema as $schemaKey => $schemaValue) {
+        foreach ($schema as $schemaKey => $schemaValue) {
             $parameters = collect($parameters)
-            ->transform(function ($item, $key) use ($schemaKey, $schemaValue){
-                if ($key == 'name') {
-                    $item = $schemaKey;
-                }
+                ->transform(function ($item, $key) use ($schemaKey, $schemaValue) {
+                    return match ($key) {
+                        'name' => $schemaKey,
+                        'schema' => $schemaValue,
+                        default => throw new Exception('Missing key'),
+                    };
+                })
+                ->toArray();
 
-                if ($key == 'schema') {
-                    $item = $schemaValue;
-                }
-                return $item;
-            })
-            ->toArray();
-            array_push($arrayOfParameters, $parameters);
+            $arrayOfParameters[] = $parameters;
         }
 
         return $arrayOfParameters;
     }
 
-    private function resolveRequest(array $rules)
+    private function resolveRequest(array $rules): array
     {
         $schema = [];
         $skip = [];
@@ -215,35 +202,32 @@ class SwaggerGenerateCommand extends Command
                 $children = collect($rules)
                     ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
 
-                array_push($skip, ... array_keys($children->toArray()));
+                array_push($skip, ...array_keys($children->toArray()));
 
                 $children = $children
-                ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
-                ->toArray();
+                    ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
+                    ->toArray();
 
                 // get array of children with removed '*'
                 $cleanChildKey = collect($children)
-                ->filter(fn ($item, $key) => Str::contains($key, '*'))
-                ->transform(fn ($item, $key) => Str::remove('.*', $key))
-                ->values()
-                ->all();
-
+                    ->filter(fn ($item, $key) => Str::contains($key, '*'))
+                    ->transform(fn ($item, $key) => Str::remove('.*', $key))
+                    ->values()
+                    ->all();
 
                 // filter childern with '*'
                 $childrenWithStar = collect($children)
-                ->filter(fn ($item, $key) => Str::contains($key, '*'))
-                ->mapWithKeys(fn ($item, $key) => [Str::after($key, ".") => $item])
-                ->toArray();
+                    ->filter(fn ($item, $key) => Str::contains($key, '*'))
+                    ->mapWithKeys(fn ($item, $key) => [Str::after($key, ".") => $item])
+                    ->toArray();
 
                 $children = $childrenWithStar ? $childrenWithStar : $children;
                 $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $cleanChildKey);
 
                 unset($children);
-                continue;
             }
         }
 
-        // dd($schema);
         return $schema;
     }
 
@@ -253,7 +237,7 @@ class SwaggerGenerateCommand extends Command
             'type' => null,
         ];
 
-        if (!Str::contains($rules, 'array')) {
+        if (! Str::contains($rules, 'array')) {
             $nullable = Str::before($rules, '|');
             $rules = Str::remove($nullable, $rules);
         }
@@ -263,18 +247,14 @@ class SwaggerGenerateCommand extends Command
         if (! empty($children) && isset($children['*'])) {
             foreach ($children as $key => $rule) {
                 $schema['properties'] = $this->generateSchemaByRules($rule);
-
             }
         }
 
-        if (! empty($children) && !isset($children['*'])) {
+        if (! empty($children) && ! isset($children['*'])) {
             foreach ($children as $key => $rule) {
                 $schema['properties'][$key] = $this->generateSchemaByRules($rule);
-
             }
         }
-
-
 
         foreach ($rules as $rule) {
             if ($schema['type'] === null) {
@@ -306,54 +286,47 @@ class SwaggerGenerateCommand extends Command
                 continue;
             }
 
-            if(Str::contains($rule, "digits_between")) {
+            if (Str::contains($rule, "digits_between")) {
                 $schema['maximum'] = Str::after($rule, ',');
-                
+
                 continue;
             }
 
-            if(Str::contains($rule, "max")) {
+            if (Str::contains($rule, "max")) {
                 $schema['maxLength'] = Str::after($rule, ':');
 
                 continue;
             }
 
-            if(Str::contains($rule, "min")) {
+            if (Str::contains($rule, "min")) {
                 $schema['minLength'] = Str::after($rule, ':');
 
                 continue;
             }
+
             if (count($children) && isset($children['*'])) {
-                for($index = 0; $index < count($propertyKey); $index++) {
+                for ($index = 0; $index < count($propertyKey); $index++) {
                     unset($schema['properties']['type']);
                     $schema['properties'][$propertyKey[$index]]['type'] = 'array';
                     $schema['properties'][$propertyKey[$index]]['items']['format'] = 'binary';
                 }
-
-                continue;
             }
-
-
         }
 
         return $schema;
     }
 
-    private function getRequestSchemaKeyByMethod($method)
+    private function getRequestSchemaKeyByMethod($method): ?string
     {
-       
         return match ($method) {
-            'GET' => 'parameters',
-            'DELETE' => 'parameters',
-            'POST' => 'requestBody',
-            'PATCH' => 'requestBody',
-            'PUT'  => 'requestBody',
-            default => null
+            'GET', 'DELETE' => 'parameters',
+            'POST', 'PUT', 'PATCH' => 'requestBody',
+            default => throw new Exception("Unsupported method. {$method}"),
         };
     }
 
-    private function getTypeByMethod($method): string {
-
+    private function getTypeByMethod($method): string
+    {
         return match ($method) {
             'GET' => 'query',
             'POST' => 'header',
@@ -361,14 +334,14 @@ class SwaggerGenerateCommand extends Command
         };
     }
 
-    private function resolveMethod($methods)
+    private function resolveMethod($methods): string
     {
         return match ($methods) {
             'GET' => 'get',
             'POST' => 'post',
             'DELETE' => 'delete',
             'PUT' => 'put',
-            default => 'unknow',
+            default => 'unknown',
         };
     }
 
