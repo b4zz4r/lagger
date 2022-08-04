@@ -2,6 +2,7 @@
 
 namespace B4zz4r\LaravelSwagger\Commands;
 
+use App\Http\Controllers\SwaggerController;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Route;
@@ -26,15 +27,47 @@ class SwaggerGenerateCommand extends Command
     }
 
     public function handle(): int
-    {
+    {   
         $routes = collect($this->router->getRoutes())->map(function ($route) {
             return $this->getRouteInformation($route);
         })->flatten(1)->filter()->all();
+
 
         foreach ($routes as $route) {
             $reflectionClass = new ReflectionClass($route['controller']);
             $reflectionMethod = $reflectionClass->getMethod($route['action']);
             $returnTypeOfMethod = $reflectionMethod->getReturnType()?->getName();
+
+            // dd($reflectionClass);
+            $rs = $reflectionClass->getMethods()[1]->getAttributes();
+
+
+            // array of description and summary
+            $array = [
+                'description' => null,
+                'summary' => null
+            ];
+
+            foreach ($rs as $r) {
+                // $lol = $r->newInstance();
+                
+                if (Str::contains($r->getName(), 'Description')) {
+                    $array['description'] = $r->getArguments()[0];
+                }
+
+                if (Str::contains($r->getName(), 'Summary')) {
+                    $array['summary'] = $r->getArguments()[0];
+                }
+                
+            }
+
+
+            $attributes = $reflectionClass->getAttributes();
+            $arguments = $attributes[0]->getArguments();
+            
+            foreach ($arguments as $argumentsKey => $argumentsValue) {
+                $tag = $argumentsValue[0];
+            }
 
             if (! class_exists($returnTypeOfMethod)) {
                 throw new Exception("Return type of '{$route['controller']}:{$route['action']}' must be class.");
@@ -67,6 +100,10 @@ class SwaggerGenerateCommand extends Command
             $this->specifications[] = [
                 'route' => $route['uri'],
                 'method' => $route['method'],
+                'description' => $array['description'],
+                'summary' => $array['summary'],
+                'name' => $route['name'],
+                'tag' => $tag,
                 'response' => $returnTypeOfMethod,
                 'requests' => $requests,
             ];
@@ -82,7 +119,7 @@ class SwaggerGenerateCommand extends Command
     {
         $info = config('laravel-swagger');
         $outputPath = Arr::pull($info, 'outputPath');
-
+        // dd($specifications);
         $paths = [];
 
         /**
@@ -98,6 +135,7 @@ class SwaggerGenerateCommand extends Command
 
         $info['paths'] = $paths;
 
+        dd($paths);
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
     }
@@ -107,17 +145,21 @@ class SwaggerGenerateCommand extends Command
         $requestClass = $specification['requests'][0];
         $request = new $requestClass();
 
+        $method = $this->resolveMethod($specification['method']);
+        $routeName = Str::after($specification['name'], '.');
+        $name = Str::camel("$method $routeName");
+
         $schema = $this->resolveRequest($request->rules());
 
         $contents = [
-            'description' => 'BINGUS DRIPPIN',
-            'summary' => 'BINGUS WAS HERE',
-            'operationId' => 'getInformation',
+            'description' => $specification['description'],
+            'summary' => $specification['summary'],
+            'operationId' => $name,
             'tags' => [
-                'pet',
+                $specification['tag'],
             ],
             'parameters' => $this->getParametersFromSchema($schema, $specification['method']),
-            // $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getRequestBody($schema),
+            // $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getRequestBody($schema, $specification['method']),
 
             'responses' => [
                 200 => [
@@ -135,7 +177,7 @@ class SwaggerGenerateCommand extends Command
         ];
 
         if ($specification['method'] == 'POST') {
-            $contents['requestBody'] = $this->getRequestBody($schema);
+             $contents['requestBody'] = $this->getRequestBody($schema);
         }
 
         return $contents;
@@ -211,7 +253,7 @@ class SwaggerGenerateCommand extends Command
                     ->toArray();
 
                 // get array of children with removed '*'
-                $cleanChildKey = collect($children)
+                $pureChildKey = collect($children)
                     ->filter(fn ($item, $key) => Str::contains($key, '*'))
                     ->transform(fn ($item, $key) => Str::remove('.*', $key))
                     ->values()
@@ -224,7 +266,7 @@ class SwaggerGenerateCommand extends Command
                     ->toArray();
 
                 $children = $childrenWithStar ? $childrenWithStar : $children;
-                $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $cleanChildKey);
+                $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $pureChildKey);
 
                 unset($children);
             }
@@ -233,7 +275,7 @@ class SwaggerGenerateCommand extends Command
         return $schema;
     }
 
-    private function generateSchemaByRules(array|string $rules, array $children = [], $propertyKey = null): array
+    private function generateSchemaByRules(array|string $rules, array $children = [], $childKey = null): array
     {
         $schema = [
             'type' => null,
@@ -309,10 +351,10 @@ class SwaggerGenerateCommand extends Command
             }
 
             if (count($children) && isset($children['*'])) {
-                for ($index = 0; $index < count($propertyKey); $index++) {
+                for ($index = 0; $index < count($childKey); $index++) {
                     unset($schema['properties']['type']);
-                    $schema['properties'][$propertyKey[$index]]['type'] = 'array';
-                    $schema['properties'][$propertyKey[$index]]['items']['format'] = 'binary';
+                    $schema['properties'][$childKey[$index]]['type'] = 'array';
+                    $schema['properties'][$childKey[$index]]['items']['format'] = 'binary';
                 }
             }
         }
@@ -332,7 +374,7 @@ class SwaggerGenerateCommand extends Command
     private function getTypeByMethod($method): string
     {
         return match ($method) {
-            'GET' => 'query',
+            'GET', 'DELETE' => 'query',
             'POST' => 'header',
             default => 'requestBody'
         };
