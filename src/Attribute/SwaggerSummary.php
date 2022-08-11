@@ -3,17 +3,17 @@
 namespace B4zz4r\LaravelSwagger\Attribute;
 
 use Attribute;
+use B4zz4r\LaravelSwagger\Interfaces\SummaryInterface;
 
 #[Attribute(Attribute::TARGET_METHOD)]
 class SwaggerSummary implements SummaryInterface
 {
-    public function __construct(public string $summary,) 
+    public function __construct(public string $summary) 
     {
-        // $this->getSummary($summary);
     }
 
-    public function getSummary($summary)
+    public function getSummary()
     {
-        return $summary;
+        return $this->summary;
     }
 }

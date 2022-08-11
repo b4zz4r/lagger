@@ -3,6 +3,7 @@
 namespace B4zz4r\LaravelSwagger\Commands;
 
 use App\Http\Controllers\SwaggerController;
+use App\Http\Resources\SwaggerResource;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Route;
@@ -33,14 +34,12 @@ class SwaggerGenerateCommand extends Command
         })->flatten(1)->filter()->all();
 
 
+
         foreach ($routes as $route) {
             $reflectionClass = new ReflectionClass($route['controller']);
             $reflectionMethod = $reflectionClass->getMethod($route['action']);
             $returnTypeOfMethod = $reflectionMethod->getReturnType()?->getName();
-
-            // dd($reflectionClass);
-            $rs = $reflectionClass->getMethods()[1]->getAttributes();
-
+            $reflectionAttributes = $reflectionClass->getMethods()[1]->getAttributes();
 
             // array of description and summary
             $array = [
@@ -48,25 +47,23 @@ class SwaggerGenerateCommand extends Command
                 'summary' => null
             ];
 
-            foreach ($rs as $r) {
-                // $lol = $r->newInstance();
+            foreach ($reflectionAttributes as $reflectionAttribute) {
                 
-                if (Str::contains($r->getName(), 'Description')) {
-                    $array['description'] = $r->getArguments()[0];
+                if (Str::contains($reflectionAttribute->getName(), 'Description')) {
+                    $array['description'] = $reflectionAttribute->getArguments()[0];
                 }
 
-                if (Str::contains($r->getName(), 'Summary')) {
-                    $array['summary'] = $r->getArguments()[0];
+                if (Str::contains($reflectionAttribute->getName(), 'Summary')) {
+                    $array['summary'] = $reflectionAttribute->getArguments()[0];
                 }
                 
             }
 
 
-            $attributes = $reflectionClass->getAttributes();
-            $arguments = $attributes[0]->getArguments();
-            
-            foreach ($arguments as $argumentsKey => $argumentsValue) {
-                $tag = $argumentsValue[0];
+            $attributes = $reflectionClass->getAttributes('B4zz4r\LaravelSwagger\Attribute\SwaggerTag');
+            $attributes = $attributes[0]->getArguments();
+            foreach ($attributes as $attributeKey => $attributeValue) {
+                $tag = $attributeValue;
             }
 
             if (! class_exists($returnTypeOfMethod)) {
@@ -119,7 +116,6 @@ class SwaggerGenerateCommand extends Command
     {
         $info = config('laravel-swagger');
         $outputPath = Arr::pull($info, 'outputPath');
-        // dd($specifications);
         $paths = [];
 
         /**
@@ -135,7 +131,7 @@ class SwaggerGenerateCommand extends Command
 
         $info['paths'] = $paths;
 
-        dd($paths);
+        // dd($paths);
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
     }
@@ -158,8 +154,8 @@ class SwaggerGenerateCommand extends Command
             'tags' => [
                 $specification['tag'],
             ],
-            'parameters' => $this->getParametersFromSchema($schema, $specification['method']),
-            // $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getRequestBody($schema, $specification['method']),
+            $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getParametersFromSchema($schema, $specification['method']),
+            // 'responses' => SwaggerResource::specification(307, $specification['response'])
 
             'responses' => [
                 200 => [
@@ -167,44 +163,41 @@ class SwaggerGenerateCommand extends Command
                     'content' => [
                         'application/xml' => [
                             'schema' => [
-                                'type' => 'object',
+                                'type' => "object",
                             ],
                         ],
                     ],
                 ],
             ],
-            // 'requests' => $specification['requests'],
+            // 'requests' => dd($specification['requests']),
         ];
 
-        if ($specification['method'] == 'POST') {
-             $contents['requestBody'] = $this->getRequestBody($schema);
-        }
+        $class = new ReflectionClass($specification['response']);
+        $spec = $class->getMethod('specification');
+        $idk = 
+        [
+            'number_of_ppl_in_the_world' => 1234567890,
+            'users' => [
+                'id' => 12,
+                'users' => 'Alex',
+            ]
+        ];
+        dd(SwaggerResource::specification($idk));
+        // dd($class->getMethod('getDescriptionByRespondCode'));
 
         return $contents;
     }
 
-    private function getRequestBody($schema): array
-    {
-        return [
-            'content' => [
-                'application/x-www-form-urlencoded' => [
-                    'schema' => [
-                        'properties' => $schema,
-                    ],
-                ],
-            ],
-        ];
-    }
-
     private function getParametersFromSchema($schema, $method = []): array
     {
-        $arrayOfParameters = [];
-        $parameters = [
-            'in' => $this->getTypeByMethod($method),
-            'name' => null,
-            'required' => true,
-            'schema' => null,
-        ];
+        if ($method == 'GET' || $method == 'DELETE') {
+            $arrayOfParameters = [];
+            $parameters = [
+                'in' => $this->getTypeByMethod($method),
+                'name' => null,
+                'required' => true,
+                'schema' => null,
+            ];
 
         foreach ($schema as $schemaKey => $schemaValue) {
             $parameters = collect($parameters)
@@ -223,6 +216,17 @@ class SwaggerGenerateCommand extends Command
         }
 
         return $arrayOfParameters;
+        } else {
+            return [
+                'content' => [
+                    'application/x-www-form-urlencoded' => [
+                        'schema' => [
+                            'properties' => $schema,
+                        ],
+                    ],
+                ],
+            ];
+        }
     }
 
     private function resolveRequest(array $rules): array

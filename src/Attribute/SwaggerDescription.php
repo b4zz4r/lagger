@@ -3,18 +3,18 @@
 namespace B4zz4r\LaravelSwagger\Attribute;
 
 use Attribute;
-use B4zz4r\LaravelSwagger\Attribute\DescriptionInterface;
+use B4zz4r\LaravelSwagger\Interfaces\DescriptionInterface;
 
 #[Attribute(Attribute::TARGET_METHOD)]
 class SwaggerDescription implements DescriptionInterface
 {
-    public function __construct(public string $description,) 
+    public function __construct(public string $description) 
     {
-        $this->getDescription($description);
+
     }
 
-    public function getDescription($description = "DEFAULT VALUE")
+    public function getDescription()
     {
-        return $description;
+        return $this->description;
     }
 }
