@@ -8,8 +8,8 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS)]
 class SwaggerTag implements TagInterface
 {
-    public function __construct(public string $tags) 
-    {   
+    public function __construct(public array $tags)
+    {
 
     }
 
