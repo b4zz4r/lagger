@@ -28,12 +28,10 @@ class SwaggerGenerateCommand extends Command
     }
 
     public function handle(): int
-    {   
+    {
         $routes = collect($this->router->getRoutes())->map(function ($route) {
             return $this->getRouteInformation($route);
         })->flatten(1)->filter()->all();
-
-
 
         foreach ($routes as $route) {
             $reflectionClass = new ReflectionClass($route['controller']);
@@ -44,11 +42,10 @@ class SwaggerGenerateCommand extends Command
             // array of description and summary
             $array = [
                 'description' => null,
-                'summary' => null
+                'summary' => null,
             ];
 
             foreach ($reflectionAttributes as $reflectionAttribute) {
-                
                 if (Str::contains($reflectionAttribute->getName(), 'Description')) {
                     $array['description'] = $reflectionAttribute->getArguments()[0];
                 }
@@ -56,9 +53,7 @@ class SwaggerGenerateCommand extends Command
                 if (Str::contains($reflectionAttribute->getName(), 'Summary')) {
                     $array['summary'] = $reflectionAttribute->getArguments()[0];
                 }
-                
             }
-
 
             $attributes = $reflectionClass->getAttributes('B4zz4r\LaravelSwagger\Attribute\SwaggerTag');
             $attributes = $attributes[0]->getArguments();
@@ -174,14 +169,14 @@ class SwaggerGenerateCommand extends Command
 
         $class = new ReflectionClass($specification['response']);
         $spec = $class->getMethod('specification');
-        $idk = 
-        [
-            'number_of_ppl_in_the_world' => 1234567890,
-            'users' => [
-                'id' => 12,
-                'users' => 'Alex',
-            ]
-        ];
+        $idk =
+            [
+                'number_of_ppl_in_the_world' => 1234567890,
+                'users' => [
+                    'id' => 12,
+                    'users' => 'Alex',
+                ],
+            ];
         dd(SwaggerResource::specification($idk));
         // dd($class->getMethod('getDescriptionByRespondCode'));
 
@@ -199,23 +194,23 @@ class SwaggerGenerateCommand extends Command
                 'schema' => null,
             ];
 
-        foreach ($schema as $schemaKey => $schemaValue) {
-            $parameters = collect($parameters)
-                ->transform(function ($item, $key) use ($schemaKey, $schemaValue) {
-                    return match ($key) {
-                        'name' => $schemaKey,
-                        'schema' => $schemaValue,
-                        'in' => $item,
-                        'required' => $item,
-                        default => throw new Exception("Missing key - $key"),
-                    };
-                })
-                ->toArray();
+            foreach ($schema as $schemaKey => $schemaValue) {
+                $parameters = collect($parameters)
+                    ->transform(function ($item, $key) use ($schemaKey, $schemaValue) {
+                        return match ($key) {
+                            'name' => $schemaKey,
+                            'schema' => $schemaValue,
+                            'in' => $item,
+                            'required' => $item,
+                            default => throw new Exception("Missing key - $key"),
+                        };
+                    })
+                    ->toArray();
 
-            $arrayOfParameters[] = $parameters;
-        }
+                $arrayOfParameters[] = $parameters;
+            }
 
-        return $arrayOfParameters;
+            return $arrayOfParameters;
         } else {
             return [
                 'content' => [
@@ -248,25 +243,25 @@ class SwaggerGenerateCommand extends Command
 
             if (Str::contains($value, 'array')) {
                 $children = collect($rules)
-                    ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
+                    ->filter(fn($item, $key) => Str::startsWith($key, "$parentKey."));
 
                 array_push($skip, ...array_keys($children->toArray()));
 
                 $children = $children
-                    ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
+                    ->mapWithKeys(fn($item, $key) => [Str::after($key, "$parentKey.") => $item])
                     ->toArray();
 
                 // get array of children with removed '*'
                 $pureChildKey = collect($children)
-                    ->filter(fn ($item, $key) => Str::contains($key, '*'))
-                    ->transform(fn ($item, $key) => Str::remove('.*', $key))
+                    ->filter(fn($item, $key) => Str::contains($key, '*'))
+                    ->transform(fn($item, $key) => Str::remove('.*', $key))
                     ->values()
                     ->all();
 
                 // filter childern with '*'
                 $childrenWithStar = collect($children)
-                    ->filter(fn ($item, $key) => Str::contains($key, '*'))
-                    ->mapWithKeys(fn ($item, $key) => [Str::after($key, ".") => $item])
+                    ->filter(fn($item, $key) => Str::contains($key, '*'))
+                    ->mapWithKeys(fn($item, $key) => [Str::after($key, ".") => $item])
                     ->toArray();
 
                 $children = $childrenWithStar ? $childrenWithStar : $children;
@@ -399,9 +394,9 @@ class SwaggerGenerateCommand extends Command
     {
         $controllerWithAction = Str::of(ltrim($route->getActionName(), '\\'));
 
-        $methods = Arr::where($route->methods(), fn ($value) => $value !== 'HEAD');
+        $methods = Arr::where($route->methods(), fn($value) => $value !== 'HEAD');
 
-        return Arr::map($methods, fn ($method) => $this->filterRoute([
+        return Arr::map($methods, fn($method) => $this->filterRoute([
             'method' => $method,
             'uri' => "/{$route->uri()}",
             'name' => $route->getName(),
