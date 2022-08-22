@@ -149,8 +149,7 @@ class SwaggerGenerateCommand extends Command
             'tags' => [
                 $specification['tag'],
             ],
-            $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getParametersFromSchema($schema, $specification['method']),
-            // 'responses' => SwaggerResource::specification(307, $specification['response'])
+            $this->getRequestSchemaKeyByMethod($specification['method']) => $this->getRequestBody($schema),
 
             'responses' => [
                 200 => [
@@ -288,7 +287,7 @@ class SwaggerGenerateCommand extends Command
         $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
 
         if (! empty($children) && isset($children['*'])) {
-            foreach ($children as $key => $rule) {
+            foreach ($children as $rule) {
                 $schema['properties'] = $this->generateSchemaByRules($rule);
             }
         }
