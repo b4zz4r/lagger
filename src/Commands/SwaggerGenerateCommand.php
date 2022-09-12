@@ -2,8 +2,6 @@
 
 namespace B4zz4r\LaravelSwagger\Commands;
 
-<<<<<<< Updated upstream
-=======
 use B4zz4r\LaravelSwagger\Concerns\DescriptionInterface;
 use B4zz4r\LaravelSwagger\Concerns\RequestInterface;
 use B4zz4r\LaravelSwagger\Concerns\ResourceInterface;
@@ -11,7 +9,6 @@ use B4zz4r\LaravelSwagger\Concerns\SpecificationInterface;
 use B4zz4r\LaravelSwagger\Concerns\SummaryInterface;
 use B4zz4r\LaravelSwagger\Concerns\TagInterface;
 use B4zz4r\LaravelSwagger\DTOs\SpecificationDTO;
->>>>>>> Stashed changes
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Route;
@@ -27,7 +24,7 @@ class SwaggerGenerateCommand extends Command
 
     public $description = 'My command';
 
-    public $prefixPath = '/special';
+    public $prefixPath = '/test';
 
     public $specifications = [];
 
@@ -57,15 +54,6 @@ class SwaggerGenerateCommand extends Command
                 throw new Exception("Instance '$returnTypeOfMethod' must implement " . ResourceInterface::class);
             }
 
-<<<<<<< Updated upstream
-            dd($returnClass->getMethod('specification')->invoke(null));
-
-            Arr::set($this->specifications, $route['uri'], [
-                'requests' => [$returnClass],
-            ]);
-
-            dd($this->specifications);
-=======
             /** @var DescriptionInterface|null $description */
             $description = Arr::first($reflectionMethod->getAttributes(DescriptionInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
 
@@ -76,7 +64,6 @@ class SwaggerGenerateCommand extends Command
             $tag = Arr::first($reflectionClass->getAttributes(TagInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
 
             $request = null;
->>>>>>> Stashed changes
 
             foreach ($reflectionMethod->getParameters() as $parameter) {
                 $requestName = $parameter->getType()->getName();
@@ -91,11 +78,6 @@ class SwaggerGenerateCommand extends Command
                     continue;
                 }
 
-<<<<<<< Updated upstream
-                if ($rc->hasMethod("rules") && $rc2->hasMethod("specification")) {
-                    $specifications["/test"]["request"] = $rc;
-                    $specifications["/test"]["response"] = $rc2;
-=======
                 $request = $parameterClass;
 
                 break;
@@ -119,36 +101,35 @@ class SwaggerGenerateCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * @param  array<SpecificationDTO>  $specifications
+     * @return void
+     */
     private function generateSwaggerSpecification(array $specifications = []): void
     {
         $info = config('laravel-swagger');
         $outputPath = Arr::pull($info, 'outputPath');
         $paths = [];
 
-        /**
-         * @var array $specification
-         */
         foreach ($specifications as $specification) {
-            $route = $specification['route'];
-            $method = $this->resolveMethod($specification['method']);
+            $method = $this->resolveMethod($specification->method);
 
-            $paths[$route] = $paths[$route] ?? [];
-            $paths[$route][$method] = $this->getContents($specification);
+            $paths[$specification->route] = $paths[$specification->route] ?? [];
+            $paths[$specification->route][$method] = $this->getContents($specification, $method);
         }
 
         $info['paths'] = $paths;
 
-        // dd($paths);
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
     }
 
-    private function getContents($specification): array
+    private function getContents(SpecificationDTO $specification, string $method): array
     {
-        /** @var ReflectionClass $requestClass */
-        $requestClass = $specification['request'];
+        $requestClass = $specification->request;
 
-        $method = $this->resolveMethod($specification['method']);
+        dd($requestClass);
+
         $routeName = Str::after($specification['name'], '.');
         $name = Str::camel("$method $routeName");
 
@@ -331,18 +312,12 @@ class SwaggerGenerateCommand extends Command
                     unset($schema['properties']['type']);
                     $schema['properties'][$childKey[$index]]['type'] = 'array';
                     $schema['properties'][$childKey[$index]]['items']['format'] = 'binary';
->>>>>>> Stashed changes
                 }
             }
         }
+
         $this->comment('All done');
 
-<<<<<<< Updated upstream
-        return self::SUCCESS;
-    }
-
-    protected function getRouteInformation(Route $route)
-=======
         return $schema;
     }
 
@@ -407,7 +382,6 @@ class SwaggerGenerateCommand extends Command
     }
 
     private function getRouteInformation(Route $route)
->>>>>>> Stashed changes
     {
         $controllerWithAction = Str::of(ltrim($route->getActionName(), '\\'));
 
