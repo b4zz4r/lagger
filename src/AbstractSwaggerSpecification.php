@@ -6,9 +6,11 @@ use B4zz4r\LaravelSwagger\Concerns\SpecificationInterface;
 
 abstract class AbstractSwaggerSpecification implements SpecificationInterface
 {
-    public function __construct(public array $additional = [], private bool $isNullable = false, private bool $isArray = false)
-    {
-    }
+    public function __construct(
+        public array $additional = [],
+        private bool $isNullable = false,
+        private bool $isArray = false
+    ) {}
 
     public function isArray(): bool
     {
