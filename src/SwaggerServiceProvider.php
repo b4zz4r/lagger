@@ -18,7 +18,7 @@ class SwaggerServiceProvider extends PackageServiceProvider
 
         $package
             ->name('laravel-swagger')
-            ->hasConfigFile()
+            ->hasConfigFile('laravel-swagger')
             ->hasCommand(SwaggerGenerateCommand::class);
     }
 }

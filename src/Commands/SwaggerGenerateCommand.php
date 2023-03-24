@@ -3,18 +3,25 @@
 namespace B4zz4r\LaravelSwagger\Commands;
 
 use B4zz4r\LaravelSwagger\Concerns\DescriptionInterface;
+use B4zz4r\LaravelSwagger\Concerns\PropertyDataInterface;
 use B4zz4r\LaravelSwagger\Concerns\RequestInterface;
 use B4zz4r\LaravelSwagger\Concerns\ResourceInterface;
 use B4zz4r\LaravelSwagger\Concerns\SpecificationInterface;
 use B4zz4r\LaravelSwagger\Concerns\SummaryInterface;
 use B4zz4r\LaravelSwagger\Concerns\TagInterface;
-use B4zz4r\LaravelSwagger\DTOs\SpecificationDTO;
+use B4zz4r\LaravelSwagger\Data\ArrayPropertyData;
+use B4zz4r\LaravelSwagger\Data\BooleanPropertyData;
+use B4zz4r\LaravelSwagger\Data\EnumPropertyData;
+use B4zz4r\LaravelSwagger\Data\IntegerPropertyData;
+use B4zz4r\LaravelSwagger\Data\SpecificationData;
+use B4zz4r\LaravelSwagger\Data\StringPropertyData;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\RequiredIf;
 use ReflectionAttribute;
 use ReflectionClass;
 
@@ -83,16 +90,20 @@ class SwaggerGenerateCommand extends Command
                 break;
             }
 
-            $this->specifications[] = new SpecificationDTO([
-                'route' => $route['uri'],
-                'method' => $route['method'],
-                'description' => $description?->getDescription(),
-                'summary' => $summary?->getSummary(),
-                'name' => $route['name'],
-                'tag' => $tag->getTags(),
-                'response' => $response->newInstance(),
-                'request' => $request?->newInstance(),
-            ]);
+            if ($request === null) {
+                throw new Exception($route['controller'] . '@' . $route['action'] .  ' dont have any parameter which implement ' . RequestInterface::class);
+            }
+
+            $this->specifications[] = new SpecificationData(
+                name: $route['name'],
+                route: $route['uri'],
+                method: $route['method'],
+                request: $request->newInstance(),
+                response: $response->newInstance(null),
+                description: $description,
+                summary: $summary,
+                tag: $tag,
+            );
         }
 
         $this->generateSwaggerSpecification($this->specifications);
@@ -102,20 +113,21 @@ class SwaggerGenerateCommand extends Command
     }
 
     /**
-     * @param  array<SpecificationDTO>  $specifications
+     * @param  array<SpecificationData>  $specifications
      * @return void
      */
     private function generateSwaggerSpecification(array $specifications = []): void
     {
-        $info = config('laravel-swagger');
-        $outputPath = Arr::pull($info, 'outputPath');
+        /** @var array $info */
+        $info = config('laravel-swagger', []);
+        $outputPath = Arr::pull($info, 'outputPath') ?? \public_path();
         $paths = [];
 
         foreach ($specifications as $specification) {
-            $method = $this->resolveMethod($specification->method);
+            $method = Str::lower($specification->method);
 
             $paths[$specification->route] = $paths[$specification->route] ?? [];
-            $paths[$specification->route][$method] = $this->getContents($specification, $method);
+            $paths[$specification->route][$method] = $this->getOpenApiSpecification($specification, $method);
         }
 
         $info['paths'] = $paths;
@@ -124,42 +136,24 @@ class SwaggerGenerateCommand extends Command
         file_put_contents($outputPath, $json);
     }
 
-    private function getContents(SpecificationDTO $specification, string $method): array
+    /**
+     * Getting (generate) OpenAPI 3 Specification by Specification
+     */
+    private function getOpenApiSpecification(SpecificationData $data, string $method): array
     {
-        $requestClass = $specification->request;
+        $requestClass = $data->request;
+        $operationId = Str::camel("$method ") . Str::after($data->name, '.');
 
-        dd($requestClass);
-
-        $routeName = Str::after($specification['name'], '.');
-        $name = Str::camel("$method $routeName");
-
-        $schema = $this->resolveRequest($requestClass->rules());
-
-        $contents = [
-            'description' => $specification['description'],
-            'summary' => $specification['summary'],
-            'operationId' => $name,
-            'tags' => [
-                $specification['tag'],
+        return [
+            'description' => $data->description?->getDescription(),
+            'summary' => $data->summary?->getSummary(),
+            'operationId' => $operationId,
+            'tags' => $data->tag?->getTags(),
+            $this->getRequestSchemaKeyByMethod($method) => $this->getSchemaByRequest($requestClass, $method),
+            'responses' => [
+                '200' => $this->getSchemaByResource($data->response),
             ],
-            $this->getRequestSchemaKeyByMethod($method) => $this->getParametersFromSchema($schema, $method),
-            'responses' => [],
-            'requests' => [],
         ];
-
-        $class = new ReflectionClass($specification['response']);
-        dd($specification['response'], $class);
-        $spec = $class->getMethod('specification');
-        $idk =
-            [
-                'number_of_ppl_in_the_world' => 1234567890,
-                'users' => [
-                    'id' => 12,
-                    'users' => 'Alex',
-                ],
-            ];
-
-        return $contents;
     }
 
     private function filterRoute(array $route): ?array
@@ -171,7 +165,7 @@ class SwaggerGenerateCommand extends Command
         return $route;
     }
 
-    private function resolveRequest(array $rules): array
+    private function resolveRequestParameters(array $rules): array
     {
         $schema = [];
         $skip = [];
@@ -205,13 +199,13 @@ class SwaggerGenerateCommand extends Command
                     ->values()
                     ->all();
 
-                // filter childern with '*'
+                // filter children with '*'
                 $childrenWithStar = collect($children)
                     ->filter(fn($item, $key) => Str::contains($key, '*'))
                     ->mapWithKeys(fn($item, $key) => [Str::after($key, ".") => $item])
                     ->toArray();
 
-                $children = $childrenWithStar ? $childrenWithStar : $children;
+                $children = count($childrenWithStar) ? $childrenWithStar : $children;
                 $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $pureChildKey);
 
                 unset($children);
@@ -221,43 +215,36 @@ class SwaggerGenerateCommand extends Command
         return $schema;
     }
 
-    private function resolveMethod($methods): string
-    {
-        return match ($methods) {
-            'GET' => 'get',
-            'POST' => 'post',
-            'DELETE' => 'delete',
-            'PUT' => 'put',
-            default => 'unknown',
-        };
-    }
-
-    private function generateSchemaByRules(array|string $rules, array $children = [], $childKey = null): array
+    private function generateSchemaByRules(mixed $rules, array $children = [], $childKey = null): array
     {
         $schema = [
             'type' => null,
+            'properties' => [],
+            'required' => [],
         ];
-
-        if (! Str::contains($rules, 'array')) {
-            $nullable = Str::before($rules, '|');
-            $rules = Str::remove($nullable, $rules);
-        }
 
         $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
 
-        if (! empty($children) && isset($children['*'])) {
-            foreach ($children as $rule) {
-                $schema['properties'] = $this->generateSchemaByRules($rule);
+        if (! empty($children)) {
+            if (isset($children['*'])) {
+                foreach ($children as $rule) {
+                    $schema['properties'] = $this->generateSchemaByRules($rule);
+                }
+            } else {
+                foreach ($children as $key => $rule) {
+                    $schema['properties'][$key] = $this->generateSchemaByRules($rule);
+                }
             }
-        }
 
-        if (! empty($children) && ! isset($children['*'])) {
-            foreach ($children as $key => $rule) {
-                $schema['properties'][$key] = $this->generateSchemaByRules($rule);
-            }
+            $schema['required'] = array_keys(Arr::where($schema['properties'], fn ($item) => $item['required'] ?? false));
         }
 
         foreach ($rules as $rule) {
+            if ($rule instanceof RequiredIf) {
+
+            }
+
+
             if ($schema['type'] === null) {
                 $schema['type'] = 'object';
             }
@@ -287,7 +274,7 @@ class SwaggerGenerateCommand extends Command
                 continue;
             }
 
-            if (Str::contains($rule, "digits_between")) {
+            if (Str::contains($rule, 'digits_between')) {
                 $digits = \explode(',', Str::after($rule, ':'));
                 $schema['minimum'] = (int) $digits[0];
                 $schema['maximum'] = (int) $digits[1];
@@ -295,13 +282,13 @@ class SwaggerGenerateCommand extends Command
                 continue;
             }
 
-            if (Str::contains($rule, "max")) {
+            if (Str::contains($rule, 'max')) {
                 $schema['maxLength'] = (int) Str::after($rule, ':');
 
                 continue;
             }
 
-            if (Str::contains($rule, "min")) {
+            if (Str::contains($rule, 'min')) {
                 $schema['minLength'] = (int) Str::after($rule, ':');
 
                 continue;
@@ -314,25 +301,31 @@ class SwaggerGenerateCommand extends Command
                     $schema['properties'][$childKey[$index]]['items']['format'] = 'binary';
                 }
             }
-        }
 
-        $this->comment('All done');
+            if (Str::startsWith($rule, ['required', 'required_'])) {
+                $schema['required'] = true;
+                $schema['description'] = $rule;
+            }
+        }
 
         return $schema;
     }
 
     private function getRequestSchemaKeyByMethod($method): ?string
     {
-        dd($method);
-        return match ($method) {
-            'GET', 'DELETE' => 'parameters',
-            'POST', 'PUT', 'PATCH' => 'requestBody',
+        return match (Str::lower($method)) {
+            'get', 'delete' => 'parameters',
+            'post', 'put', 'patch' => 'requestBody',
             default => throw new Exception("Unsupported method. {$method}"),
         };
     }
 
-    private function getParametersFromSchema($schema, $method = []): array
+    private function getSchemaByRequest(RequestInterface $request, string $method): array
     {
+        $requestSchema = $this->resolveRequestParameters($request->rules());
+        $attributes = (new ReflectionClass($request))->getMethod('rules')->getAttributes();
+        dd($attributes);
+
         if ($method == 'GET' || $method == 'DELETE') {
             $arrayOfParameters = [];
             $parameters = [
@@ -342,14 +335,13 @@ class SwaggerGenerateCommand extends Command
                 'schema' => null,
             ];
 
-            foreach ($schema as $schemaKey => $schemaValue) {
+            foreach ($requestSchema as $schemaKey => $schemaValue) {
                 $parameters = collect($parameters)
                     ->transform(function ($item, $key) use ($schemaKey, $schemaValue) {
                         return match ($key) {
                             'name' => $schemaKey,
                             'schema' => $schemaValue,
-                            'in' => $item,
-                            'required' => $item,
+                            'in', 'required' => $item,
                             default => throw new Exception("Missing key - $key"),
                         };
                     })
@@ -359,17 +351,79 @@ class SwaggerGenerateCommand extends Command
             }
 
             return $arrayOfParameters;
-        } else {
-            return [
-                'content' => [
-                    'application/x-www-form-urlencoded' => [
-                        'schema' => [
-                            'properties' => $schema,
-                        ],
+        }
+
+        return [
+            'content' => [
+                'application/json' => [
+                    'schema' => [
+                        'properties' => $requestSchema,
                     ],
                 ],
+            ],
+        ];
+    }
+
+    private function getSchemaByResource(ResourceInterface $resource): array
+    {
+        $specification = $resource->specification();
+        $schema = $this->getSpecificationSchema($specification);
+
+        return [
+            'description' => $specification->getDescription(),
+            'content' => [
+                'application/json' => [
+                    'schema' => $schema,
+                ]
+            ]
+        ];
+    }
+
+    private function getSpecificationSchema(SpecificationInterface $specification): array
+    {
+        $specificationProperties = $specification->getProperties();
+        $properties = [];
+        // $required = [];
+
+        /** @var \ReflectionProperty $property */
+        foreach ($specificationProperties as $property) {
+            $propertyTypeRepresentation = $property->getType()?->getName();
+
+            /** @var PropertyDataInterface $dataType */
+            $dataType = match (true) {
+                $propertyTypeRepresentation === 'int' => new IntegerPropertyData($property),
+                $propertyTypeRepresentation === 'bool' => new BooleanPropertyData($property),
+                $propertyTypeRepresentation === 'array' => new ArrayPropertyData($property),
+                enum_exists($propertyTypeRepresentation) => new EnumPropertyData($property),
+                default => new StringPropertyData($property),
+            };
+
+            $properties[$property->getName()] = $dataType->toArray();
+
+            // if ($property->getType()?->allowsNull() === false) {
+            //     $required[] = $property->getName();
+            // }
+        }
+
+        // Has with specifications?
+        foreach ($specification->getOtherSpecifications() as $propertyName => $otherSpecification) {
+            $properties[$propertyName] = $this->getSpecificationSchema($otherSpecification);
+        }
+
+        $result = [
+            'properties' => $properties,
+            // 'required' => $required,
+        ];
+
+        if ($specification->isArray()) {
+            $result = [
+                'type' => 'array',
+                'nullable' => $specification->isNullable(),
+                'items' => $result,
             ];
         }
+
+        return $result;
     }
 
     private function getTypeByMethod($method): string
@@ -381,7 +435,7 @@ class SwaggerGenerateCommand extends Command
         };
     }
 
-    private function getRouteInformation(Route $route)
+    private function getRouteInformation(Route $route): ?array
     {
         $controllerWithAction = Str::of(ltrim($route->getActionName(), '\\'));
 
