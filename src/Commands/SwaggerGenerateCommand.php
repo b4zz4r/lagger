@@ -2,6 +2,7 @@
 
 namespace B4zz4r\LaravelSwagger\Commands;
 
+use B4zz4r\LaravelSwagger\Attribute\SwaggerParameterDescription;
 use B4zz4r\LaravelSwagger\Concerns\DescriptionInterface;
 use B4zz4r\LaravelSwagger\Concerns\PropertyDataInterface;
 use B4zz4r\LaravelSwagger\Concerns\RequestInterface;
@@ -165,10 +166,17 @@ class SwaggerGenerateCommand extends Command
         return $route;
     }
 
-    private function resolveRequestParameters(array $rules): array
+    private function resolveRequestParameters(RequestInterface $request): array
     {
         $schema = [];
         $skip = [];
+        $rules = $request->rules();
+
+        /** @var array<string, string> $descriptions */
+        $descriptions = (new ReflectionClass($request))
+            ->getMethod('rules')
+            ->getAttributes(SwaggerParameterDescription::class)[0]
+            ?->getArguments()[0] ?? [];
 
         foreach ($rules as $parentKey => $value) {
             if (in_array($parentKey, $skip)) {
@@ -176,7 +184,11 @@ class SwaggerGenerateCommand extends Command
             }
 
             if (! Str::contains($value, 'array')) {
-                $schema[$parentKey] = $this->generateSchemaByRules($value);
+                $schema[$parentKey] = $this->generateSchemaByRules(
+                    rules: $value,
+                    parentKey: $parentKey,
+                    descriptions: $descriptions
+                );
                 Arr::forget($rules, $parentKey);
 
                 continue;
@@ -206,7 +218,13 @@ class SwaggerGenerateCommand extends Command
                     ->toArray();
 
                 $children = count($childrenWithStar) ? $childrenWithStar : $children;
-                $schema[$parentKey] = $this->generateSchemaByRules($value, $children, $pureChildKey);
+                $schema[$parentKey] = $this->generateSchemaByRules(
+                    rules: $value,
+                    children: $children,
+                    parentKey: $parentKey,
+                    childKeys: $pureChildKey,
+                    descriptions: $descriptions
+                );
 
                 unset($children);
             }
@@ -215,24 +233,40 @@ class SwaggerGenerateCommand extends Command
         return $schema;
     }
 
-    private function generateSchemaByRules(mixed $rules, array $children = [], $childKey = null): array
-    {
+    private function generateSchemaByRules(
+        mixed $rules,
+        array $children = [],
+        string $parentKey = null,
+        array $childKeys = null,
+        array $descriptions = []
+    ): array {
         $schema = [
             'type' => null,
             'properties' => [],
             'required' => [],
+            'description' => $descriptions[$parentKey] ?? null,
         ];
 
-        $rules = Str::contains($rules, '|') ? explode('|', $rules) : $rules;
+        $rules = Arr::wrap(
+            Str::contains($rules, '|') ? explode('|', $rules) : $rules
+        );
 
         if (! empty($children)) {
             if (isset($children['*'])) {
                 foreach ($children as $rule) {
-                    $schema['properties'] = $this->generateSchemaByRules($rule);
+                    $schema['properties'] = $this->generateSchemaByRules(
+                        rules: $rule,
+                        parentKey: $parentKey,
+                        descriptions: $descriptions
+                    );
                 }
             } else {
                 foreach ($children as $key => $rule) {
-                    $schema['properties'][$key] = $this->generateSchemaByRules($rule);
+                    $schema['properties'][$key] = $this->generateSchemaByRules(
+                        rules: $rule,
+                        parentKey: "$parentKey.$key",
+                        descriptions: $descriptions
+                    );
                 }
             }
 
@@ -240,10 +274,12 @@ class SwaggerGenerateCommand extends Command
         }
 
         foreach ($rules as $rule) {
+            $schema['description'] ??= $rule;
+
             if ($rule instanceof RequiredIf) {
-
+                $schema['type'] = 'object';
+                $schema['required'] = true;
             }
-
 
             if ($schema['type'] === null) {
                 $schema['type'] = 'object';
@@ -295,16 +331,15 @@ class SwaggerGenerateCommand extends Command
             }
 
             if (count($children) && isset($children['*'])) {
-                for ($index = 0; $index < count($childKey); $index++) {
+                for ($index = 0; $index < count($childKeys); $index++) {
                     unset($schema['properties']['type']);
-                    $schema['properties'][$childKey[$index]]['type'] = 'array';
-                    $schema['properties'][$childKey[$index]]['items']['format'] = 'binary';
+                    $schema['properties'][$childKeys[$index]]['type'] = 'array';
+                    $schema['properties'][$childKeys[$index]]['items']['format'] = 'binary';
                 }
             }
 
             if (Str::startsWith($rule, ['required', 'required_'])) {
                 $schema['required'] = true;
-                $schema['description'] = $rule;
             }
         }
 
@@ -322,9 +357,7 @@ class SwaggerGenerateCommand extends Command
 
     private function getSchemaByRequest(RequestInterface $request, string $method): array
     {
-        $requestSchema = $this->resolveRequestParameters($request->rules());
-        $attributes = (new ReflectionClass($request))->getMethod('rules')->getAttributes();
-        dd($attributes);
+        $requestSchema = $this->resolveRequestParameters($request);
 
         if ($method == 'GET' || $method == 'DELETE') {
             $arrayOfParameters = [];
@@ -358,6 +391,8 @@ class SwaggerGenerateCommand extends Command
                 'application/json' => [
                     'schema' => [
                         'properties' => $requestSchema,
+                        // Parents required attribute
+                        'required' => array_keys(array_filter($requestSchema, fn ($item) => ($item['required'] ?? false) === true))
                     ],
                 ],
             ],
