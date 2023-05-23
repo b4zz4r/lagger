@@ -30,9 +30,9 @@ class LaggerGenerateCommand extends Command
 {
     public $signature = 'lagger:generate';
 
-    public $description = 'My command';
+    public $description = 'Generate swagger JSON';
 
-    public string $prefixPath = '/';
+    public string $prefixPath = '/api';
 
     public array $specifications = [];
 
@@ -120,8 +120,8 @@ class LaggerGenerateCommand extends Command
     private function generateSwaggerSpecification(array $specifications = []): void
     {
         /** @var array $info */
-        $info = config('laravel-swagger', []);
-        $outputPath = Arr::pull($info, 'outputPath') ?? \public_path();
+        $info = config('lagger', []);
+        $outputPath = Arr::pull($info, 'outputPath') ?? public_path('swagger.json');
         $paths = [];
 
         foreach ($specifications as $specification) {
