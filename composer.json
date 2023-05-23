@@ -35,19 +35,20 @@
     },
     "autoload": {
         "psr-4": {
-            "B4zz4r\\Lagger\\": "./src"
+            "B4zz4r\\Lagger\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "B4zz4r\\Lagger\\Tests\\": "./tests"
+            "B4zz4r\\Lagger\\Tests\\": "tests/"
         }
     },
     "scripts": {
+        "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
         "analyse": "vendor/bin/phpstan analyse",
         "test": "vendor/bin/pest",
         "test-coverage": "vendor/bin/pest --coverage",
-        "format": "vendor/bin/php-cs-fixer fix --allow-risky=yes"
+        "format": "vendor/bin/pint"
     },
     "config": {
         "sort-packages": true,
