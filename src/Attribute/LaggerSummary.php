@@ -6,7 +6,7 @@ use Attribute;
 use B4zz4r\Lagger\Concerns\SummaryInterface;
 
 #[Attribute(Attribute::TARGET_METHOD)]
-class SwaggerSummary implements SummaryInterface
+class LaggerSummary implements SummaryInterface
 {
     public function __construct(public string $summary)
     {

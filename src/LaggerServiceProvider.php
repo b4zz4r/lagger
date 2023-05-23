@@ -2,11 +2,11 @@
 
 namespace B4zz4r\Lagger;
 
-use B4zz4r\Lagger\Commands\SwaggerGenerateCommand;
+use B4zz4r\Lagger\Commands\LaggerGenerateCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-class SwaggerServiceProvider extends PackageServiceProvider
+class LaggerServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
@@ -19,6 +19,6 @@ class SwaggerServiceProvider extends PackageServiceProvider
         $package
             ->name('lagger')
             ->hasConfigFile('lagger')
-            ->hasCommand(SwaggerGenerateCommand::class);
+            ->hasCommand(LaggerGenerateCommand::class);
     }
 }

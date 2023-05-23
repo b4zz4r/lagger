@@ -8,7 +8,7 @@ use B4zz4r\Lagger\Concerns\ParameterInterface;
 use B4zz4r\Lagger\Concerns\SummaryInterface;
 
 #[Attribute(Attribute::TARGET_METHOD)]
-class SwaggerParameterDescription
+class LaggerParameterDescription
 {
     public function __construct(public array $parameters)
     {

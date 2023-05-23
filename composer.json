@@ -60,10 +60,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "B4zz4r\\Lagger\\SwaggerServiceProvider"
+                "LaggerServiceProvider"
             ],
             "aliases": {
-                "Swagger": "B4zz4r\\Lagger\\Facades\\Swagger"
+                "Lagger": "B4zz4r\\Lagger\\Facades\\Lagger"
             }
         }
     },

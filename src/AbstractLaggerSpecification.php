@@ -4,7 +4,7 @@ namespace B4zz4r\Lagger;
 
 use B4zz4r\Lagger\Concerns\SpecificationInterface;
 
-abstract class AbstractSwaggerSpecification implements SpecificationInterface
+abstract class AbstractLaggerSpecification implements SpecificationInterface
 {
     /**
      * Property for OA `description` property

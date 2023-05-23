@@ -2,7 +2,7 @@
 
 namespace B4zz4r\Lagger\Commands;
 
-use B4zz4r\Lagger\Attribute\SwaggerParameterDescription;
+use B4zz4r\Lagger\Attribute\LaggerParameterDescription;
 use B4zz4r\Lagger\Concerns\DescriptionInterface;
 use B4zz4r\Lagger\Concerns\PropertyDataInterface;
 use B4zz4r\Lagger\Concerns\RequestInterface;
@@ -26,9 +26,9 @@ use Illuminate\Validation\Rules\RequiredIf;
 use ReflectionAttribute;
 use ReflectionClass;
 
-class SwaggerGenerateCommand extends Command
+class LaggerGenerateCommand extends Command
 {
-    public $signature = 'swagger:generate';
+    public $signature = 'lagger:generate';
 
     public $description = 'My command';
 
@@ -175,7 +175,7 @@ class SwaggerGenerateCommand extends Command
         /** @var array<string, string> $descriptions */
         $descriptions = (new ReflectionClass($request))
             ->getMethod('rules')
-            ->getAttributes(SwaggerParameterDescription::class)[0]
+            ->getAttributes(LaggerParameterDescription::class)[0]
             ?->getArguments()[0] ?? [];
 
         foreach ($rules as $parentKey => $value) {

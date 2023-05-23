@@ -6,7 +6,7 @@ use B4zz4r\Lagger\Concerns\TagInterface;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_CLASS)]
-class SwaggerTag implements TagInterface
+class LaggerTag implements TagInterface
 {
     public function __construct(public array $tags)
     {

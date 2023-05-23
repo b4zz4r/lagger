@@ -6,7 +6,7 @@ use Attribute;
 use B4zz4r\Lagger\Concerns\DescriptionInterface;
 
 #[Attribute(Attribute::TARGET_METHOD)]
-class SwaggerDescription implements DescriptionInterface
+class LaggerDescription implements DescriptionInterface
 {
     public function __construct(public string $description)
     {
