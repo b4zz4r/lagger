@@ -35,13 +35,12 @@
     },
     "autoload": {
         "psr-4": {
-            "B4zz4r\\Lagger\\": "src",
-            "B4zz4r\\Lagger\\Database\\Factories\\": "database/factories"
+            "B4zz4r\\Lagger\\": "./src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "B4zz4r\\Lagger\\Tests\\": "tests"
+            "B4zz4r\\Lagger\\Tests\\": "./tests"
         }
     },
     "scripts": {
@@ -60,7 +59,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "LaggerServiceProvider"
+                "B4zz4r\\Lagger\\LaggerServiceProvider"
             ],
             "aliases": {
                 "Lagger": "B4zz4r\\Lagger\\Facades\\Lagger"
