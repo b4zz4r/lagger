@@ -7,6 +7,7 @@ use B4zz4r\Lagger\Concerns\DescriptionInterface;
 use B4zz4r\Lagger\Concerns\PropertyDataInterface;
 use B4zz4r\Lagger\Concerns\RequestInterface;
 use B4zz4r\Lagger\Concerns\ResourceInterface;
+use B4zz4r\Lagger\Concerns\ResponseInterface;
 use B4zz4r\Lagger\Concerns\SpecificationInterface;
 use B4zz4r\Lagger\Concerns\SummaryInterface;
 use B4zz4r\Lagger\Concerns\TagInterface;
@@ -18,6 +19,8 @@ use B4zz4r\Lagger\Data\SpecificationData;
 use B4zz4r\Lagger\Data\StringPropertyData;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
@@ -56,10 +59,13 @@ class LaggerGenerateCommand extends Command
                 throw new Exception("Return type of '{$route['controller']}:{$route['action']}' must be class.");
             }
 
-            $response = new ReflectionClass($returnTypeOfMethod);
+            $responseInstance = new ReflectionClass($returnTypeOfMethod);
 
-            if (! $response->implementsInterface(ResourceInterface::class)) {
-                throw new Exception("Instance '$returnTypeOfMethod' must implement " . ResourceInterface::class);
+            if (! $responseInstance->implementsInterface(ResourceInterface::class) &&
+                ! $responseInstance->newInstanceWithoutConstructor() instanceof Response &&
+                ! $responseInstance->newInstanceWithoutConstructor() instanceof JsonResponse
+            ) {
+                throw new Exception("Instance '$returnTypeOfMethod' must implement " . ResourceInterface::class . " or must be instance of " . Response::class . " or " . JsonResponse::class);
             }
 
             /** @var DescriptionInterface|null $description */
@@ -71,7 +77,10 @@ class LaggerGenerateCommand extends Command
             /** @var TagInterface|null $tag */
             $tag = Arr::first($reflectionClass->getAttributes(TagInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
 
-            $request = null;
+            /** @var ResponseInterface|null $response */
+            $response = Arr::first($reflectionMethod->getAttributes(ResponseInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
+
+            $requestInstance = null;
 
             foreach ($reflectionMethod->getParameters() as $parameter) {
                 $requestName = $parameter->getType()->getName();
@@ -86,12 +95,12 @@ class LaggerGenerateCommand extends Command
                     continue;
                 }
 
-                $request = $parameterClass;
+                $requestInstance = $parameterClass;
 
                 break;
             }
 
-            if ($request === null) {
+            if ($requestInstance === null) {
                 throw new Exception($route['controller'] . '@' . $route['action'] .  ' dont have any parameter which implement ' . RequestInterface::class);
             }
 
@@ -99,11 +108,12 @@ class LaggerGenerateCommand extends Command
                 name: $route['name'],
                 route: $route['uri'],
                 method: $route['method'],
-                request: $request->newInstance(),
-                response: $response->newInstance(null),
+                request: $requestInstance->newInstance(),
+                response: $responseInstance->newInstanceWithoutConstructor(),
                 description: $description,
                 summary: $summary,
                 tag: $tag,
+                responses: $response?->getResponses() ?? [],
             );
         }
 
@@ -144,6 +154,20 @@ class LaggerGenerateCommand extends Command
     {
         $requestClass = $data->request;
         $operationId = Str::camel("$method ") . Str::after($data->name, '.');
+        $responses = [];
+
+        if ($data->response instanceof ResourceInterface) {
+            $responses['200'] = $this->getSchemaByResource($data->response);
+        }
+
+        foreach ($data->responses as $responseData) {
+            $responses[$responseData->statusCode] = [
+                'description' => $responseData->summary,
+                'content' => [
+                    'application/json' => [],
+                ],
+            ];
+        }
 
         return [
             'description' => $data->description?->getDescription(),
@@ -151,9 +175,7 @@ class LaggerGenerateCommand extends Command
             'operationId' => $operationId,
             'tags' => $data->tag?->getTags(),
             $this->getRequestSchemaKeyByMethod($method) => $this->getSchemaByRequest($requestClass, $method),
-            'responses' => [
-                '200' => $this->getSchemaByResource($data->response),
-            ],
+            'responses' => $responses,
         ];
     }
 
@@ -170,17 +192,24 @@ class LaggerGenerateCommand extends Command
     {
         $schema = [];
         $skip = [];
+        $descriptions = [];
         $rules = $request->rules();
 
-        /** @var array<string, string> $descriptions */
-        $descriptions = (new ReflectionClass($request))
+        $descriptionInstance = (new ReflectionClass($request))
             ->getMethod('rules')
-            ->getAttributes(LaggerParameterDescription::class)[0]
-            ?->getArguments()[0] ?? [];
+            ->getAttributes(LaggerParameterDescription::class);
+
+        if (! empty($descriptionInstance)) {
+            $descriptions = $descriptionInstance[0]?->getArguments()[0] ?? [];
+        }
 
         foreach ($rules as $parentKey => $value) {
             if (in_array($parentKey, $skip)) {
                 continue;
+            }
+
+            if (is_array($value)) {
+                $value = \implode(',', $value);
             }
 
             if (! Str::contains($value, 'array')) {
@@ -363,6 +392,7 @@ class LaggerGenerateCommand extends Command
     private function getRequestSchemaKeyByMethod($method): ?string
     {
         return match (Str::lower($method)) {
+            'get|head' => 'parameters',
             'get', 'delete' => 'parameters',
             'post', 'put', 'patch' => 'requestBody',
             default => throw new Exception("Unsupported method. {$method}"),
