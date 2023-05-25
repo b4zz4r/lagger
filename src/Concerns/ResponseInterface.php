@@ -1,10 +1,12 @@
 <?php
 namespace B4zz4r\Lagger\Concerns;
 
+use B4zz4r\Lagger\Data\ResponseData;
+
 interface ResponseInterface
 {
     /**
-     * @return array<ResponseData>
+     * @return ResponseData[]
      */
     public function getResponses(): array;
 }

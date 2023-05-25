@@ -143,8 +143,12 @@ class LaggerGenerateCommand extends Command
 
         $info['paths'] = $paths;
 
+        // Forget custom responses
+        Arr::forget($info, 'responses');
+
         $json = json_encode($info);
         file_put_contents($outputPath, $json);
+
     }
 
     /**
@@ -153,7 +157,10 @@ class LaggerGenerateCommand extends Command
     private function getOpenApiSpecification(SpecificationData $data, string $method): array
     {
         $requestClass = $data->request;
-        $operationId = Str::camel("$method ") . Str::after($data->name, '.');
+        $operationId = \vsprintf('%s.%s', [
+            $data->name,
+            Str::lower($data->method),
+        ]);
         $responses = [];
 
         if ($data->response instanceof ResourceInterface) {
@@ -164,7 +171,7 @@ class LaggerGenerateCommand extends Command
             $responses[$responseData->statusCode] = [
                 'description' => $responseData->summary,
                 'content' => [
-                    'application/json' => [],
+                    'application/json' => (object) [],
                 ],
             ];
         }
@@ -209,7 +216,7 @@ class LaggerGenerateCommand extends Command
             }
 
             if (is_array($value)) {
-                $value = \implode(',', $value);
+                $value = implode('|', $value);
             }
 
             if (! Str::contains($value, 'array')) {
@@ -392,7 +399,6 @@ class LaggerGenerateCommand extends Command
     private function getRequestSchemaKeyByMethod($method): ?string
     {
         return match (Str::lower($method)) {
-            'get|head' => 'parameters',
             'get', 'delete' => 'parameters',
             'post', 'put', 'patch' => 'requestBody',
             default => throw new Exception("Unsupported method. {$method}"),
@@ -404,7 +410,7 @@ class LaggerGenerateCommand extends Command
         $requestSchema = $this->resolveRequestParameters($request);
         $requestSchema = $this->resolveRequiredOpenApiAttribute($requestSchema);
 
-        if ($method == 'GET' || $method == 'DELETE') {
+        if (Str::lower($method ) === 'get' || Str::lower($method) === 'delete') {
             $arrayOfParameters = [];
             $parameters = [
                 'in' => $this->getTypeByMethod($method),
@@ -438,7 +444,7 @@ class LaggerGenerateCommand extends Command
             unset($requestSchema['required']);
         }
 
-        $responseSchema['properties'] = $requestSchema;
+        $responseSchema['properties'] = empty($requestSchema) ? (object) [] : $requestSchema;
 
         return [
             'content' => [
@@ -468,7 +474,6 @@ class LaggerGenerateCommand extends Command
     {
         $specificationProperties = $specification->getProperties();
         $properties = [];
-        // $required = [];
 
         /** @var \ReflectionProperty $property */
         foreach ($specificationProperties as $property) {
@@ -484,10 +489,6 @@ class LaggerGenerateCommand extends Command
             };
 
             $properties[$property->getName()] = $dataType->toArray();
-
-            // if ($property->getType()?->allowsNull() === false) {
-            //     $required[] = $property->getName();
-            // }
         }
 
         // Has with specifications?
@@ -497,7 +498,6 @@ class LaggerGenerateCommand extends Command
 
         $result = [
             'properties' => $properties,
-            // 'required' => $required,
         ];
 
         if ($specification->isArray()) {
@@ -525,7 +525,7 @@ class LaggerGenerateCommand extends Command
         $controllerWithAction = Str::of(ltrim($route->getActionName(), '\\'));
 
         return $this->filterRoute([
-            'method' => implode('|', $route->methods()),
+            'method' => $route->methods()[0],
             'uri' => "/{$route->uri()}",
             'name' => $route->getName(),
             'controller' => $controllerWithAction->before('@')->value(),
