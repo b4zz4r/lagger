@@ -83,9 +83,9 @@ class LaggerGenerateCommand extends Command
             $requestInstance = null;
 
             foreach ($reflectionMethod->getParameters() as $parameter) {
-                $requestName = $parameter->getType()->getName();
+                $requestName = $parameter->getType()?->getName();
 
-                if (! class_exists($requestName)) {
+                if (is_null($requestName) || ! class_exists($requestName)) {
                     continue;
                 }
 
