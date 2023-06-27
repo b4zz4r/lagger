@@ -28,6 +28,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\RequiredIf;
 use ReflectionAttribute;
 use ReflectionClass;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class LaggerGenerateCommand extends Command
 {
@@ -63,9 +64,18 @@ class LaggerGenerateCommand extends Command
 
             if (! $responseInstance->implementsInterface(ResourceInterface::class) &&
                 ! $responseInstance->newInstanceWithoutConstructor() instanceof Response &&
-                ! $responseInstance->newInstanceWithoutConstructor() instanceof JsonResponse
+                ! $responseInstance->newInstanceWithoutConstructor() instanceof JsonResponse &&
+                ! $responseInstance->newInstanceWithoutConstructor() instanceof BinaryFileResponse
             ) {
-                throw new Exception("Instance '$returnTypeOfMethod' must implement " . ResourceInterface::class . " or must be instance of " . Response::class . " or " . JsonResponse::class);
+                throw new Exception(
+                    vsprintf(
+                        "Instance '' must implement %s or must be instance of %s or %s or %s", [
+                        $returnTypeOfMethod,
+                        ResourceInterface::class,
+                        Response::class,
+                        JsonResponse::class,
+                    ])
+                );
             }
 
             /** @var DescriptionInterface|null $description */
@@ -165,6 +175,20 @@ class LaggerGenerateCommand extends Command
 
         if ($data->response instanceof ResourceInterface) {
             $responses['200'] = $this->getSchemaByResource($data->response);
+        }
+
+        if ($data->response instanceof BinaryFileResponse) {
+            $responses['200'] = [
+                'description' => 'File response.',
+                'content' => [
+                    'application/pdf' => [
+                        'schema' => [
+                            'type' => 'string',
+                            'format' => 'binary',
+                        ],
+                    ],
+                ],
+            ];
         }
 
         foreach ($data->responses as $responseData) {

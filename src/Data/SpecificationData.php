@@ -10,6 +10,7 @@ use B4zz4r\Lagger\Concerns\TagInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Spatie\LaravelData\Data;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SpecificationData extends Data
 {
@@ -29,7 +30,7 @@ class SpecificationData extends Data
         public string $route,
         public string $method,
         public RequestInterface $request,
-        public ResourceInterface|Response|JsonResponse $response,
+        public ResourceInterface|Response|JsonResponse|BinaryFileResponse $response,
         public ?DescriptionInterface $description,
         public ?SummaryInterface $summary,
         public ?TagInterface $tag,
