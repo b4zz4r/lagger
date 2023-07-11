@@ -13,6 +13,8 @@ use B4zz4r\Lagger\Concerns\SummaryInterface;
 use B4zz4r\Lagger\Concerns\TagInterface;
 use B4zz4r\Lagger\Data\ArrayPropertyData;
 use B4zz4r\Lagger\Data\BooleanPropertyData;
+use B4zz4r\Lagger\Data\DatePropertyData;
+use B4zz4r\Lagger\Data\DateTimePropertyData;
 use B4zz4r\Lagger\Data\EnumPropertyData;
 use B4zz4r\Lagger\Data\IntegerPropertyData;
 use B4zz4r\Lagger\Data\SpecificationData;
@@ -506,7 +508,7 @@ class LaggerGenerateCommand extends Command
             $propertyTypeRepresentation = $property->getType()?->getName();
 
             if (count($property->getAttributes())) {
-                dd($property->getAttributes()[0]?->newInstance());
+                $propertyTypeRepresentation = $property->getAttributes()[0]->getArguments()['type'] ?? 'string';
             }
 
             /**
