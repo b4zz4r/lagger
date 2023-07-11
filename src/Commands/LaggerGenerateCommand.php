@@ -499,15 +499,25 @@ class LaggerGenerateCommand extends Command
         $specificationProperties = $specification->getProperties();
         $properties = [];
 
-        /** @var \ReflectionProperty $property */
+        /**
+         * @var \ReflectionProperty $property
+         */
         foreach ($specificationProperties as $property) {
             $propertyTypeRepresentation = $property->getType()?->getName();
 
-            /** @var PropertyDataInterface $dataType */
+            if (count($property->getAttributes())) {
+                dd($property->getAttributes()[0]?->newInstance());
+            }
+
+            /**
+             * @var PropertyDataInterface $dataType
+             */
             $dataType = match (true) {
                 $propertyTypeRepresentation === 'int' => new IntegerPropertyData($property),
                 $propertyTypeRepresentation === 'bool' => new BooleanPropertyData($property),
                 $propertyTypeRepresentation === 'array' => new ArrayPropertyData($property),
+                $propertyTypeRepresentation === 'date' => new DatePropertyData($property),
+                $propertyTypeRepresentation === 'date-time' => new DateTimePropertyData($property),
                 enum_exists($propertyTypeRepresentation) => new EnumPropertyData($property),
                 default => new StringPropertyData($property),
             };
