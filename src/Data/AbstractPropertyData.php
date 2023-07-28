@@ -12,4 +12,16 @@ abstract class AbstractPropertyData implements PropertyDataInterface
     }
 
     abstract public function toArray(): array;
+
+    public function getSpecification(): array
+    {
+        $array = $this->toArray();
+
+        return array_merge(
+            $array,
+            [
+                'nullable' => $this->reflectionProperty->getType()->allowsNull(),
+            ]
+        );
+    }
 }

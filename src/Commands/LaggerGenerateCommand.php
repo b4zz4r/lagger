@@ -524,7 +524,7 @@ class LaggerGenerateCommand extends Command
                 default => new StringPropertyData($property),
             };
 
-            $properties[$property->getName()] = $dataType->toArray();
+            $properties[$property->getName()] = $dataType->getSpecification();
         }
 
         // Has with specifications?
