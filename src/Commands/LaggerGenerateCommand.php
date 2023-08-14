@@ -31,6 +31,7 @@ use Illuminate\Validation\Rules\RequiredIf;
 use ReflectionAttribute;
 use ReflectionClass;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LaggerGenerateCommand extends Command
 {
@@ -67,7 +68,8 @@ class LaggerGenerateCommand extends Command
             if (! $responseInstance->implementsInterface(ResourceInterface::class) &&
                 ! $responseInstance->newInstanceWithoutConstructor() instanceof Response &&
                 ! $responseInstance->newInstanceWithoutConstructor() instanceof JsonResponse &&
-                ! $responseInstance->newInstanceWithoutConstructor() instanceof BinaryFileResponse
+                ! $responseInstance->newInstanceWithoutConstructor() instanceof BinaryFileResponse &&
+                ! $responseInstance->newInstanceWithoutConstructor() instanceof StreamedResponse
             ) {
                 throw new Exception(
                     vsprintf(
@@ -179,7 +181,7 @@ class LaggerGenerateCommand extends Command
             $responses['200'] = $this->getSchemaByResource($data->response);
         }
 
-        if ($data->response instanceof BinaryFileResponse) {
+        if ($data->response instanceof BinaryFileResponse || $data->response instanceof StreamedResponse) {
             $responses['200'] = [
                 'description' => 'File response.',
                 'content' => [
