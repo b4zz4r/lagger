@@ -358,8 +358,14 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-            if ($rule === 'numeric') {
+            if ($rule === 'numeric' || $rule === 'integer') {
                 $schema['type'] = 'integer';
+
+                continue;
+            }
+
+            if ($rule === 'boolean') {
+                $schema['type'] = 'boolean';
 
                 continue;
             }
