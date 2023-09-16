@@ -21,12 +21,14 @@ use B4zz4r\Lagger\Data\SpecificationData;
 use B4zz4r\Lagger\Data\StringPropertyData;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Rules\RequiredIf;
 use ReflectionAttribute;
 use ReflectionClass;
@@ -72,8 +74,8 @@ class LaggerGenerateCommand extends Command
                 ! $responseInstance->newInstanceWithoutConstructor() instanceof StreamedResponse
             ) {
                 throw new Exception(
-                    vsprintf(
-                        "Instance '' must implement %s or must be instance of %s or %s or %s", [
+                    vsprintf("Instance '%s' must implement %s or must be instance of %s or %s or %s", [
+                        $route['controller'].'::'.$route['action'],
                         $returnTypeOfMethod,
                         ResourceInterface::class,
                         Response::class,
@@ -243,11 +245,11 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-            if (is_array($value)) {
-                $value = implode('|', $value);
+            if (! is_array($value)) {
+                $value = explode('|', $value);
             }
 
-            if (! Str::contains($value, 'array')) {
+            if (! in_array('array', $value)) {
                 $schema[$parentKey] = $this->generateSchemaByRules(
                     rules: $value,
                     parentKey: $parentKey,
@@ -258,32 +260,30 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-            if (Str::contains($value, 'array')) {
-                $children = collect($rules)
-                    ->filter(fn($item, $key) => Str::startsWith($key, "$parentKey."));
+            $children = collect($rules)
+                ->filter(fn($item, $key) => Str::startsWith($key, "$parentKey."));
 
-                array_push($skip, ...array_keys($children->toArray()));
+            array_push($skip, ...array_keys($children->toArray()));
 
-                $children = $children
-                    ->mapWithKeys(fn($item, $key) => [Str::after($key, "$parentKey.") => $item])
-                    ->toArray();
+            $children = $children
+                ->mapWithKeys(fn($item, $key) => [Str::after($key, "$parentKey.") => $item])
+                ->toArray();
 
-                foreach ($children as $childKey => $rule) {
-                    if (Str::contains($childKey, '.*')) {
-                        $children[Str::before($childKey, '.*')] .= '|item:' . Str::replace('|', '-', $rule);
-                        unset($children[$childKey]);
-                    }
+            foreach ($children as $childKey => $rule) {
+                if (Str::contains($childKey, '.*')) {
+                    $children[Str::before($childKey, '.*')] .= '|item:' . Str::replace('|', '-', $rule);
+                    unset($children[$childKey]);
                 }
-
-                $schema[$parentKey] = $this->generateSchemaByRules(
-                    rules: $value,
-                    children: $children,
-                    parentKey: $parentKey,
-                    descriptions: $descriptions
-                );
-
-                unset($children);
             }
+
+            $schema[$parentKey] = $this->generateSchemaByRules(
+                rules: $value,
+                children: $children,
+                parentKey: $parentKey,
+                descriptions: $descriptions
+            );
+
+            unset($children);
         }
 
         return $schema;
@@ -299,10 +299,6 @@ class LaggerGenerateCommand extends Command
             'type' => 'object',
             'description' => $descriptions[$parentKey] ?? null,
         ];
-
-        $rules = Arr::wrap(
-            Str::contains($rules, '|') ? explode('|', $rules) : $rules
-        );
 
         if (! empty($children)) {
             foreach ($children as $key => $rule) {
@@ -321,6 +317,10 @@ class LaggerGenerateCommand extends Command
                 $schema['type'] = 'object';
                 $schema['isRequired'] = true;
 
+                continue;
+            }
+
+            if ($rule instanceof Rule) {
                 continue;
             }
 
