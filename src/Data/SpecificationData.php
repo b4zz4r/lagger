@@ -3,6 +3,7 @@
 namespace B4zz4r\Lagger\Data;
 
 use B4zz4r\Lagger\Concerns\DescriptionInterface;
+use B4zz4r\Lagger\Concerns\ParametersInterface;
 use B4zz4r\Lagger\Concerns\RequestInterface;
 use B4zz4r\Lagger\Concerns\ResourceInterface;
 use B4zz4r\Lagger\Concerns\SummaryInterface;
@@ -15,17 +16,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpecificationData extends Data
 {
-    /**
-     * @param string $name
-     * @param string $route
-     * @param string $method
-     * @param RequestInterface $request
-     * @param ResourceInterface|Response|JsonResponse $response
-     * @param DescriptionInterface|null $description
-     * @param SummaryInterface|null $summary
-     * @param TagInterface|null $tag
-     * @param array<ResponseData> $responses
-     */
     public function __construct(
         public string $name,
         public string $route,
@@ -35,6 +25,7 @@ class SpecificationData extends Data
         public ?DescriptionInterface $description,
         public ?SummaryInterface $summary,
         public ?TagInterface $tag,
+        public ?ParametersInterface $parameters,
         public array $responses = [],
     ) {
     }

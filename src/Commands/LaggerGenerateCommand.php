@@ -4,6 +4,7 @@ namespace B4zz4r\Lagger\Commands;
 
 use B4zz4r\Lagger\Attribute\LaggerParameterDescription;
 use B4zz4r\Lagger\Concerns\DescriptionInterface;
+use B4zz4r\Lagger\Concerns\ParametersInterface;
 use B4zz4r\Lagger\Concerns\PropertyDataInterface;
 use B4zz4r\Lagger\Concerns\RequestInterface;
 use B4zz4r\Lagger\Concerns\ResourceInterface;
@@ -87,6 +88,9 @@ class LaggerGenerateCommand extends Command
             /** @var DescriptionInterface|null $description */
             $description = Arr::first($reflectionMethod->getAttributes(DescriptionInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
 
+            /** @var ParametersInterface|null $parameters */
+            $parameters = Arr::first($reflectionMethod->getAttributes(ParametersInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
+
             /** @var SummaryInterface|null $summary */
             $summary = Arr::first($reflectionMethod->getAttributes(SummaryInterface::class, ReflectionAttribute::IS_INSTANCEOF))?->newInstance();
 
@@ -129,6 +133,7 @@ class LaggerGenerateCommand extends Command
                 description: $description,
                 summary: $summary,
                 tag: $tag,
+                parameters: $parameters,
                 responses: $response?->getResponses() ?? [],
             );
         }
@@ -206,7 +211,7 @@ class LaggerGenerateCommand extends Command
             ];
         }
 
-        return [
+        $specification = [
             'description' => $data->description?->getDescription(),
             'summary' => $data->summary?->getSummary(),
             'operationId' => $operationId,
@@ -214,6 +219,21 @@ class LaggerGenerateCommand extends Command
             $this->getRequestSchemaKeyByMethod($method) => $this->getSchemaByRequest($requestClass, $method),
             'responses' => $responses,
         ];
+
+        if (! ($data->parameters instanceof ParametersInterface)) {
+            return $specification;
+        }
+
+        $parameters = [];
+        foreach ($data->parameters->getParameters() as $name => $values) {
+            [$instance, $attributes] = array_pad(Arr::wrap($values), 2, []);
+
+            $parameters[] = (new $instance)->toArray($name, $attributes);
+        }
+
+        $specification['parameters'] = array_merge($parameters, $specification['parameters']);
+
+        return $specification;
     }
 
     private function filterRoute(array $route): ?array
@@ -232,12 +252,12 @@ class LaggerGenerateCommand extends Command
         $descriptions = [];
         $rules = $request->rules();
 
-        $descriptionInstance = (new ReflectionClass($request))
+        $rulesDescriptionInstance = (new ReflectionClass($request))
             ->getMethod('rules')
-            ->getAttributes(LaggerParameterDescription::class);
+            ->getAttributes(LaggerRulesDescription::class);
 
-        if (! empty($descriptionInstance)) {
-            $descriptions = $descriptionInstance[0]?->getArguments()[0] ?? [];
+        if (! empty($rulesDescription)) {
+            $descriptions = $rulesDescription[0]?->getRules() ?? [];
         }
 
         foreach ($rules as $parentKey => $value) {
