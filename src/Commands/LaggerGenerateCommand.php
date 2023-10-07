@@ -231,7 +231,11 @@ class LaggerGenerateCommand extends Command
             $parameters[] = (new $instance)->toArray($name, $attributes);
         }
 
-        $specification['parameters'] = array_merge($parameters, $specification['parameters']);
+        Arr::set(
+            $specification,
+            'parameters',
+            array_merge($parameters, $specification['parameters'] ?? [])
+        );
 
         return $specification;
     }
