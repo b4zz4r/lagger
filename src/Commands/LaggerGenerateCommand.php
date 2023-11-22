@@ -44,7 +44,7 @@ class LaggerGenerateCommand extends Command
 
     public $description = 'Generate swagger JSON';
 
-    public string $prefixPath = '/api/v1/invoices';
+    public string $prefixPath = '/api';
 
     public array $specifications = [];
 
