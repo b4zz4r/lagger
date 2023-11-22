@@ -3,6 +3,7 @@
 namespace B4zz4r\Lagger\Commands;
 
 use B4zz4r\Lagger\Attribute\LaggerParameterDescription;
+use B4zz4r\Lagger\Attribute\LaggerRulesDescription;
 use B4zz4r\Lagger\Concerns\DescriptionInterface;
 use B4zz4r\Lagger\Concerns\ParametersInterface;
 use B4zz4r\Lagger\Concerns\PropertyDataInterface;
@@ -30,6 +31,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\RequiredIf;
 use ReflectionAttribute;
 use ReflectionClass;
@@ -42,7 +44,7 @@ class LaggerGenerateCommand extends Command
 
     public $description = 'Generate swagger JSON';
 
-    public string $prefixPath = '/api';
+    public string $prefixPath = '/api/v1/invoices';
 
     public array $specifications = [];
 
@@ -256,12 +258,13 @@ class LaggerGenerateCommand extends Command
         $descriptions = [];
         $rules = $request->rules();
 
+        /** @var ReflectionAttribute[] $rulesDescriptionInstance */
         $rulesDescriptionInstance = (new ReflectionClass($request))
             ->getMethod('rules')
             ->getAttributes(LaggerRulesDescription::class);
 
-        if (! empty($rulesDescription)) {
-            $descriptions = $rulesDescription[0]?->getRules() ?? [];
+        if ($rulesDescriptionInstance[0] ?? false) {
+            $descriptions = $rulesDescriptionInstance[0]->newInstance()->getRules() ?? [];
         }
 
         foreach ($rules as $parentKey => $value) {
@@ -273,7 +276,7 @@ class LaggerGenerateCommand extends Command
                 $value = explode('|', $value);
             }
 
-            if (! in_array('array', $value)) {
+            if (! in_array('array', $value) && ! Str::contains($parentKey, '.*.')) {
                 $schema[$parentKey] = $this->generateSchemaByRules(
                     rules: $value,
                     parentKey: $parentKey,
@@ -284,20 +287,20 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-            $children = collect($rules)
-                ->filter(fn($item, $key) => Str::startsWith($key, "$parentKey."));
 
-            array_push($skip, ...array_keys($children->toArray()));
+            $array = collect($rules)
+                ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
 
-            $children = $children
-                ->mapWithKeys(fn($item, $key) => [Str::after($key, "$parentKey.") => $item])
+
+            array_push($skip, ...array_keys($array->toArray()));
+
+            $array = $array
+                ->mapWithKeys(fn ($item, $key) => [Str::after($key, "$parentKey.") => $item])
                 ->toArray();
 
-            foreach ($children as $childKey => $rule) {
-                if (Str::contains($childKey, '.*')) {
-                    $children[Str::before($childKey, '.*')] .= '|item:' . Str::replace('|', '-', $rule);
-                    unset($children[$childKey]);
-                }
+            $children = [];
+            foreach ($array as $child => $rule) {
+                $children = array_merge_recursive($children, $this->makeChildrenArray(explode('.', $child), $rule));
             }
 
             $schema[$parentKey] = $this->generateSchemaByRules(
@@ -313,6 +316,21 @@ class LaggerGenerateCommand extends Command
         return $schema;
     }
 
+    private function makeChildrenArray(array $items, array $rule): array
+    {
+        if (count($items) === 1) {
+            return [
+                $items[0] => $rule,
+            ];
+        }
+
+        $firstChild = array_shift($items);
+
+        return [
+            $firstChild => $this->makeChildrenArray($items, $rule)
+        ];
+    }
+
     private function generateSchemaByRules(
         mixed $rules,
         array $children = [],
@@ -325,16 +343,27 @@ class LaggerGenerateCommand extends Command
         ];
 
         if (! empty($children)) {
-            foreach ($children as $key => $rule) {
-                $schema['properties'][$key] = $this->generateSchemaByRules(
-                    rules: $rule,
-                    parentKey: "$parentKey.$key",
-                    descriptions: $descriptions
-                );
+            foreach ($children as $key => $value) {
+                if ($key === '*' && ! isset($value[0])) {
+                    $schema['type'] = 'array';
+                    $schema['items'] = $this->generateSchemaByRules(
+                        rules: [],
+                        children: $value,
+                        parentKey: "$parentKey.$key",
+                        descriptions: $descriptions
+                    );
+                } else {
+                    $schema['properties'][$key] = $this->generateSchemaByRules(
+                        rules: isset($value[0]) ? $value : [],
+                        children: isset($value[0]) ? [] : $value,
+                        parentKey: "$parentKey.$key",
+                        descriptions: $descriptions
+                    );
+                }
             }
         }
 
-        foreach ($rules as $rule) {
+        foreach (Arr::wrap($rules) as $rule) {
             $schema['description'] ??= $rule;
 
             if ($rule instanceof RequiredIf) {
@@ -344,20 +373,9 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-            if ($rule instanceof Rule) {
-                continue;
-            }
-
-            if (Str::startsWith($rule, 'item:')) {
-                $itemRule = Str::replace('-', '|', Str::after($rule, 'item:'));
-                $schema = [
-                    'type' => 'array',
-                    'items' => $this->generateSchemaByRules(
-                        rules: $itemRule,
-                        parentKey: $parentKey,
-                        descriptions: $descriptions
-                    ),
-                ];
+            if ($rule instanceof In) {
+                $schema['type'] = 'string';
+                $schema['enum'] = str($rule->__toString())->after('in:')->remove('"')->explode(',')->toArray();
 
                 continue;
             }
@@ -432,7 +450,7 @@ class LaggerGenerateCommand extends Command
     private function resolveRequiredOpenApiAttribute(array $schema): array
     {
         if (! empty($schema['properties'] ?? [])) {
-            $schema['required'] = array_keys(Arr::where($schema['properties'] ?? [], fn($item) => $item['isRequired'] ?? false));
+            $schema['required'] = array_keys(Arr::where($schema['properties'] ?? [], fn ($item) => $item['isRequired'] ?? false));
 
             foreach ($schema['properties'] ?? [] as $key => $item) {
                 unset($schema['properties'][$key]['isRequired']);
@@ -444,6 +462,10 @@ class LaggerGenerateCommand extends Command
         }
 
         foreach ($schema as $key => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
             if ($item['isRequired'] ?? false) {
                 $schema['required'] ??= [];
                 $schema['required'][] = $key;
