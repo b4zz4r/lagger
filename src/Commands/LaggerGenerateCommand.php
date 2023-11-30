@@ -478,8 +478,9 @@ class LaggerGenerateCommand extends Command
 
     private function getRequestSchemaKeyByMethod($method): ?string
     {
-        return match (Str::lower($method)) {
-            'get', 'delete' => 'parameters',
+        return match (str($method)->lower()->trim()->toString()) {
+            'get' => 'parameters',
+            'delete' => 'parameters',
             'post', 'put', 'patch' => 'requestBody',
             default => throw new Exception("Unsupported method. {$method}"),
         };
@@ -499,13 +500,21 @@ class LaggerGenerateCommand extends Command
                 'schema' => null,
             ];
 
+            $required = [];
+
+            if (isset($requestSchema['required'])) {
+                $required = $requestSchema['required'];
+                unset($requestSchema['required']);
+            }
+
             foreach ($requestSchema as $schemaKey => $schemaValue) {
                 $parameters = collect($parameters)
-                    ->transform(function ($item, $key) use ($schemaKey, $schemaValue) {
+                    ->transform(function ($item, $key) use ($schemaKey, $schemaValue, $required) {
                         return match ($key) {
                             'name' => $schemaKey,
                             'schema' => $schemaValue,
-                            'in', 'required' => $item,
+                            'in' => $item,
+                            'required' => in_array($item, $required),
                             default => throw new Exception("Missing key - $key"),
                         };
                     })
@@ -601,11 +610,11 @@ class LaggerGenerateCommand extends Command
         return $result;
     }
 
-    private function getTypeByMethod($method): string
+    private function getTypeByMethod(string $method): string
     {
-        return match ($method) {
-            'GET', 'DELETE' => 'query',
-            'POST' => 'header',
+        return match (str($method)->lower()->trim()->toString()) {
+            'get', 'delete' => 'query',
+            'post' => 'header',
             default => 'requestBody'
         };
     }
