@@ -373,6 +373,18 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
+            if ($rule instanceof Enum) {
+                $property = (new ReflectionClass($rule))->getProperty('type');
+                $property->setAccessible(true); /// cuz laravel set protected on $type property
+                /** @var \UnitEnum $enum */
+                $enum = $property->getValue($rule);
+
+                $schema['type'] = 'string';
+                $schema['enum'] = array_map(fn (\UnitEnum $item) => $item->value, $enum::cases());
+
+                continue;
+            }
+
             if ($rule instanceof In) {
                 $schema['type'] = 'string';
                 $schema['enum'] = str($rule->__toString())->after('in:')->remove('"')->explode(',')->toArray();
