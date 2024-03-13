@@ -366,6 +366,11 @@ class LaggerGenerateCommand extends Command
         foreach (Arr::wrap($rules) as $rule) {
             $schema['description'] ??= $rule;
 
+            if ($rule instanceof Rule) {
+                // @todo
+                continue;
+            }
+
             if ($rule instanceof RequiredIf) {
                 $schema['type'] = 'object';
                 $schema['isRequired'] = true;
