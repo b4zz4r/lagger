@@ -287,10 +287,8 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-
             $array = collect($rules)
                 ->filter(fn ($item, $key) => Str::startsWith($key, "$parentKey."));
-
 
             array_push($skip, ...array_keys($array->toArray()));
 
@@ -344,18 +342,20 @@ class LaggerGenerateCommand extends Command
 
         if (! empty($children)) {
             foreach ($children as $key => $value) {
-                if ($key === '*' && ! isset($value[0])) {
+                if ($key === '*') {
+                    $nextChildren = array_filter($value, fn ($key) => !is_numeric($key), ARRAY_FILTER_USE_KEY);
+
                     $schema['type'] = 'array';
                     $schema['items'] = $this->generateSchemaByRules(
-                        rules: [],
-                        children: $value,
+                        rules: empty($nextChildren) ? $value : [],
+                        children: $nextChildren,
                         parentKey: "$parentKey.$key",
                         descriptions: $descriptions
                     );
                 } else {
                     $schema['properties'][$key] = $this->generateSchemaByRules(
-                        rules: isset($value[0]) ? $value : [],
-                        children: isset($value[0]) ? [] : $value,
+                        rules: array_filter($value, fn ($key) => is_numeric($key), ARRAY_FILTER_USE_KEY),
+                        children: array_filter($value, fn ($key) => !is_numeric($key), ARRAY_FILTER_USE_KEY),
                         parentKey: "$parentKey.$key",
                         descriptions: $descriptions
                     );
