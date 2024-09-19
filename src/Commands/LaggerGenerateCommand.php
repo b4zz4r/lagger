@@ -24,6 +24,7 @@ use B4zz4r\Lagger\Data\StringPropertyData;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Validation\Rule;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Route;
@@ -394,6 +395,10 @@ class LaggerGenerateCommand extends Command
                 $schema['type'] = 'string';
                 $schema['enum'] = str($rule->__toString())->after('in:')->remove('"')->explode(',')->toArray();
 
+                continue;
+            }
+
+            if ($rule instanceof ValidationRule) {
                 continue;
             }
 
