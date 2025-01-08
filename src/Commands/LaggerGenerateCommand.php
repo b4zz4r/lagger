@@ -398,7 +398,7 @@ class LaggerGenerateCommand extends Command
                 continue;
             }
 
-            if ($rule instanceof ValidationRule) {
+            if ($rule instanceof ValidationRule || $rule instanceof \Closure) {
                 continue;
             }
 
