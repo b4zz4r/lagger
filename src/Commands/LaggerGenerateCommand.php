@@ -63,7 +63,12 @@ class LaggerGenerateCommand extends Command
         foreach ($routes as $route) {
             $reflectionClass = new ReflectionClass($route['controller']);
             $reflectionMethod = $reflectionClass->getMethod($route['action']);
-            $returnTypeOfMethod = $reflectionMethod->getReturnType()?->getName();
+            $reflectionType = $reflectionMethod->getReturnType();
+            if ($reflectionType instanceof \ReflectionUnionType) {
+                $reflectionType = $reflectionType->getTypes()[0];
+            }
+
+            $returnTypeOfMethod = $reflectionType?->getName();
 
             if (! class_exists($returnTypeOfMethod)) {
                 throw new Exception("Return type of '{$route['controller']}:{$route['action']}' must be class.");
